@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import shutil
+import subprocess
 from .inventory import inventory_sources
 from .detectors import scan_sources
 from .toolchain import run_slither_local
