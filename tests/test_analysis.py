@@ -44,7 +44,7 @@ class AnalysisTests(unittest.TestCase):
             source.mkdir()
             (source/"Demo.sol").write_text("pragma solidity ^0.8.20;\ncontract Demo {}\n",encoding="utf-8")
             output=root/"analysis.json"
-            argv=["afb-immunefi","analyze","--source",str(source),"--workspace",str(workspace),"--output",str(output),"--no-slither"]
+            argv=["afb-immunefi","analyze","--source",str(source),"--workspace",str(workspace),"--output",str(output),"--no-static-tools"]
             with patch("sys.argv",argv):
                 self.assertEqual(main(),0)
             data=json.loads(output.read_text(encoding="utf-8"))
