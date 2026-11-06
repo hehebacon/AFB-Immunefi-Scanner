@@ -52,6 +52,10 @@ def main():
         elif a.command=="slither":
             require_policy(a.workspace/"program/policy.yaml")
             result=run_slither_local(a.source,a.output); print(json.dumps(result,indent=2)); return int(result["returncode"])
+        elif a.command=="verify-deployments":
+            require_policy(a.workspace/"program/policy.yaml")
+            result=verify_targets_file(a.targets,a.output)
+            print(json.dumps({"output":str(a.output),"checked":len(result["results"]),"verified_matches":sum(x.get("status")=="verified_match" for x in result["results"])},indent=2))
         elif a.command=="report":
             print(f"Report written: {write_report(a.findings,a.output,a.program)}")
         return 0
