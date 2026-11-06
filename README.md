@@ -5,7 +5,7 @@ A scope-first, local-first smart-contract security research assistant for author
 **Safety:** this project performs local source inventory and conservative source review. It does not probe live targets, send transactions, execute exploits against deployed protocols, connect wallets, or submit reports.
 
 ## Implemented
-- Workspace initialization and readiness status.
+- One-URL Immunefi program intake: fetches the official information page, identifies the program slug, saves source HTML/text and builds an evidence-based scope draft/report.\n- Workspace initialization and readiness status.
 - Human-confirmed policy gate (scope, exclusions, testing restrictions, safe harbor, last-checked date).
 - Local Solidity inventory: SHA-256, compiler pragma, contracts/interfaces/libraries, imports.
 - Conservative source heuristics for call ordering, public/external functions, unchecked blocks, delegatecall, tx.origin, timestamps, selfdestruct, ecrecover, and low-level calls.
