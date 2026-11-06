@@ -29,7 +29,8 @@ Paste one official Immunefi Information URL:
 ```bash
 afb-immunefi program-url \
   --url "https://immunefi.com/bug-bounty/ssvnetwork/information/" \
-  --workspace ./workspace
+  --workspace ./workspace \
+  --max-commits 1000
 ```
 
 The command initializes the workspace if needed, then fetches the same program's Information, Scope and Resources tabs. If Resources links a public GitHub repository, it downloads only `.sol` files (size/file-count capped), records recent public commit metadata, classifies documentation/explorer/audit references, and downloads linked PDF documents within strict size limits. PDF text is extracted when possible. Repository code is never executed.
@@ -88,7 +89,7 @@ This queries Sourcify public verification metadata only. It does not call contra
 - Candidate addresses are not automatically treated as in-scope assets.
 - Documentation crawling is intentionally bounded (40 pages, depth 2, same host, 2 MB/page); JavaScript-rendered content, linked external hosts and deeper pages may be missed.
 - Git history is paginated beyond the former 100-commit ceiling (default 1,000, hard cap 5,000); this is still not an unlimited forensic archive.
-- OCR is optional and requires `tesseract-ocr` plus `poppler-utils`; install Python extras with `pip install -e '.[ocr]'`. OCR quality depends on scan quality/language packs and is capped at 120 pages per PDF.
+- OCR is optional and requires `tesseract-ocr` plus `poppler-utils`; No extra Python package is required; install the system binaries with `sudo apt install tesseract-ocr poppler-utils`. OCR quality depends on scan quality/language packs and is capped at 120 pages per PDF.
 - GitHub source downloads remain limited to Solidity files and do not establish deployed-source correspondence by themselves. Use the optional Sourcify verification workflow for address/chain-specific metadata checks; only an exact match is strong source-match evidence, and it does not establish Immunefi scope.
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
 - Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
