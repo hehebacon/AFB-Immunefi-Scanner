@@ -124,13 +124,13 @@ def crawl_documentation(references: list[dict], output_dir: Path, max_pages: int
             failures.append({"url":url,"reason":str(exc)[:250]})
     return {"status":"completed","seed_count":len(seeds),"pages_saved":len(saved),"queue_remaining":len(queue),"page_limit":max_pages,"depth_limit":max_depth,"saved":saved,"failures":failures}
 
-def _ocr_pdf(pdf_path: Path, output_path: Path, max_pages: int=MAX_OCR_PAGES) -> dict:
+def _ocr_pdf(pdf_path: Path, output_path: Path, page_numbers: list[int], max_pages: int=MAX_OCR_PAGES) -> dict:
     if not shutil.which("tesseract") or not shutil.which("pdftoppm"):
         return {"status":"unavailable","reason":"Install tesseract-ocr and poppler-utils to OCR scanned PDF pages."}
     try:
         from pypdf import PdfReader
         reader=PdfReader(str(pdf_path),strict=False)
-        total=min(len(reader.pages),max_pages); ocr_text=[]; attempted=0
+        selected=page_numbers[:max_pages]; total=len(selected); ocr_text=[]; attempted=0
         import tempfile
         with tempfile.TemporaryDirectory(prefix="afb-ocr-") as tmp:
             for page_index in range(total):
@@ -143,7 +143,7 @@ def _ocr_pdf(pdf_path: Path, output_path: Path, max_pages: int=MAX_OCR_PAGES) ->
                 if out.returncode==0 and out.stdout.strip(): ocr_text.append(f"[OCR Page {page_index+1}]\n{out.stdout.strip()[:12000]}")
         if ocr_text:
             with output_path.open("a",encoding="utf-8") as stream: stream.write("\n\n"+"\n\n".join(ocr_text)+"\n")
-        return {"status":"completed","pages_considered":total,"pages_rendered":attempted,"pages_with_text":len(ocr_text),"page_cap":max_pages,"truncated":len(reader.pages)>max_pages}
+        return {"status":"completed","pages_considered":total,"pages_rendered":attempted,"pages_with_text":len(ocr_text),"page_cap":max_pages,"truncated":len(page_numbers)>max_pages}
     except (ImportError,OSError,ValueError,subprocess.TimeoutExpired) as exc:
         return {"status":"failed","error":str(exc)[:300]}
 
@@ -176,7 +176,7 @@ def fetch_audit_pdfs(references: list[dict], output_dir: Path, enable_ocr: bool=
                 text_path=target.with_suffix(".txt")
                 text_path.write_text("\n\n".join(f"[Page {p['page']}]\n{p['text']}" for p in pages),encoding="utf-8")
                 record.update({"pages_read":len(reader.pages),"pages_with_text":len(pages),"pages_without_text":scanned,"text_path":str(text_path)})
-                record["ocr"]=_ocr_pdf(target,text_path) if enable_ocr and scanned else {"status":"not_needed" if not scanned else "disabled"}
+                record["ocr"]=_ocr_pdf(target,text_path,scanned) if enable_ocr and scanned else {"status":"not_needed" if not scanned else "disabled"}
             except ImportError: record["text_extraction"]="pypdf not installed"
             except Exception as exc: record["text_extraction_error"]=str(exc)[:300]
             saved.append(record)
