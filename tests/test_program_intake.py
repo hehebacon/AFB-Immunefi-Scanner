@@ -5,7 +5,7 @@ class ProgramIntakeTests(unittest.TestCase):
     def test_accepts_information_page_and_extracts_slug(self):
         slug, url = validate_program_url("https://immunefi.com/bug-bounty/ssvnetwork/information/")
         self.assertEqual(slug, "ssvnetwork")
-        self.assertIn("/information/", url)
+        self.assertIn("/information/", url)\n        self.assertEqual(validate_program_url("https://immunefi.com/bug-bounty/ssvnetwork/scope/")[0], "ssvnetwork")\n        self.assertEqual(validate_program_url("https://immunefi.com/bug-bounty/ssvnetwork/resources/")[0], "ssvnetwork")
 
     def test_rejects_non_immunefi_host(self):
         with self.assertRaises(ValueError):
@@ -19,7 +19,7 @@ class ProgramIntakeTests(unittest.TestCase):
         page = {
             "slug": "sample", "requested_url": "https://immunefi.com/bug-bounty/sample/information/",
             "fetched_at": "2026-11-06T00:00:00+00:00", "sha256": "abc",
-            "text": "Ethereum mainnet contract 0x0000000000000000000000000000000000000001 In-scope assets",
+            "text": "Assets in Scope: Ethereum mainnet contract 0x0000000000000000000000000000000000000001",
             "final_url": "https://immunefi.com/bug-bounty/sample/information/", "links": []
         }
         draft = build_scope_draft(page)
