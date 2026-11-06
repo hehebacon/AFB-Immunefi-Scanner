@@ -86,7 +86,9 @@ def _section_extract(text: str, terms: tuple[str,...]) -> list[str]:
 
 def build_scope_draft(page: dict) -> dict:
     text=page.get("combined_text",page["text"])
-    scope_chunks=_section_extract(text,("assets in scope",))
+    scope_pages=[item for item in page.get("pages",[page]) if urlparse(item["final_url"]).path.rstrip("/").endswith("/scope")]
+    scope_source="\n\n".join(item["text"] for item in scope_pages)
+    scope_chunks=_section_extract(scope_source,("assets in scope",))
     scope_text=" ".join(scope_chunks)
     full_addresses=set(re.findall(r"\b0x[a-fA-F0-9]{40}\b",scope_text))
     partial_addresses=set(re.findall(r"\b0x[a-fA-F0-9]{4,12}\.\.\.[a-fA-F0-9]{4,12}\b",scope_text))
