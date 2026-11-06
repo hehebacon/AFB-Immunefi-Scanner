@@ -97,7 +97,7 @@ def build_scope_draft(page: dict) -> dict:
         "source_fetched_at":page["fetched_at"],
         "source_sha256":page["sha256"],
         "verification_status":"unverified_human_review_required",
-        "in_scope_assets_candidates":[{"address":a,"status":"candidate_only","evidence_source":"Immunefi Scope page"} for a in address_candidates],
+        "in_scope_assets_candidates":address_candidates,
         "chain_mentions_candidates":chains,
         "scope_evidence":scope_chunks,
         "excluded_asset_evidence":_section_extract(text,("out of scope","out-of-scope","excluded assets")),
@@ -149,4 +149,4 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     lines.extend(["- "+link for link in page["links"]] or ["- None extracted."])
     lines.extend(["","## Limitations"]+["- "+x for x in draft["limitations"]])
     (program_dir/"scope-report.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
-    return {"slug":page["slug"],"http_status":page["http_status"],"title":page["title"],"source_sha256":page["sha256"],"asset_candidates":len(draft["in_scope_assets_candidates"]),"related_links":len(page["links"]),"program_pages_fetched":len(page["pages"]),"outputs":[str(program_dir/x) for x in ("source-page-information.html","source-page-information.txt","source-page-scope.html","source-page-scope.txt","source-page-resources.html","source-page-resources.txt","intake.json","scope-draft.json","scope-report.md")]}
+    return {"slug":page["slug"],"http_status":page["http_status"],"title":page["title"],"source_sha256":page["sha256"],"asset_candidates":len(draft["in_scope_assets_candidates"]),"related_links":len(page["links"]),"program_pages_fetched":len(page["pages"]),"outputs":[str(program_dir/("source-page-"+urlparse(item["final_url"]).path.rstrip("/").split("/")[-1]+"."+ext)) for item in page["pages"] for ext in ("html","txt")]+[str(program_dir/x) for x in ("intake.json","scope-draft.json","scope-report.md")]}
