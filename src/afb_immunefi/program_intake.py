@@ -131,7 +131,8 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     page["pages"]=[page]+related
     page["combined_text"]="\n\n".join(p["text"] for p in page["pages"])
     draft=build_scope_draft(page)
-    program_dir=workspace/"program"; program_dir.mkdir(parents=True,exist_ok=True)
+    program_dir=workspace/"program"
+    program_dir.mkdir(parents=True,exist_ok=True)
     for item in page["pages"]:
         suffix=urlparse(item["final_url"]).path.rstrip("/").split("/")[-1]
         (program_dir/f"source-page-{suffix}.html").write_text(item["html"],encoding="utf-8")
@@ -139,6 +140,30 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     intake={"slug":page["slug"],"requested_url":page["requested_url"],"pages":[{"url":p["final_url"],"http_status":p["http_status"],"title":p["title"],"fetched_at":p["fetched_at"],"sha256":p["sha256"]} for p in page["pages"]],"related_links":page["links"]}
     (program_dir/"intake.json").write_text(json.dumps(intake,indent=2),encoding="utf-8")
     (program_dir/"scope-draft.json").write_text(json.dumps(draft,indent=2),encoding="utf-8")
+
+    resources_page=next((p for p in related if urlparse(p["final_url"]).path.rstrip("/").endswith("/resources")),None)
+    if resources_page:
+        from .source_discovery import download_linked_solidity_repo
+        source_result=download_linked_solidity_repo(resources_page["links"],workspace/"reconnaissance"/"sources")
+    else:
+        source_result={"status":"resources_page_not_fetched"}
+    (program_dir/"source-discovery.json").write_text(json.dumps(source_result,indent=2),encoding="utf-8")
+    analysis_result={"status":"not_run"}
+    if source_result.get("status")=="downloaded":
+        from .inventory import inventory_sources
+        from .detectors import scan_sources
+        source_root=Path(source_result["local_path"])
+        inventory=inventory_sources(source_root)
+        leads=scan_sources(source_root)
+        recon_dir=workspace/"reconnaissance"
+        review_dir=workspace/"analysis"/"review-notes"
+        recon_dir.mkdir(parents=True,exist_ok=True)
+        review_dir.mkdir(parents=True,exist_ok=True)
+        (recon_dir/"contracts.json").write_text(json.dumps({"repository":source_result["repository"],"files":inventory},indent=2),encoding="utf-8")
+        (review_dir/"source-leads.json").write_text(json.dumps({"repository":source_result["repository"],"scope_status":"unverified","findings":leads},indent=2),encoding="utf-8")
+        analysis_result={"status":"completed_local_heuristics","solidity_files":len(inventory),"potential_review_leads":len(leads),"scope_status":"unverified"}
+    (program_dir/"local-analysis.json").write_text(json.dumps(analysis_result,indent=2),encoding="utf-8")
+
     lines=[f"# Program scope research — {page['slug']}","","- Official page: "+page["final_url"],"- Fetched: "+page["fetched_at"],"- Pages fetched: "+str(len(page["pages"])),"- Source SHA-256: "+page["sha256"],"","> Draft only. This is extracted public-page evidence, not a verified scope decision. Confirm current program rules before testing."]
     def add_section(title,key):
         lines.extend(["",f"## {title}"])
@@ -153,8 +178,11 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     add_section("Impacts in Scope evidence","impact_evidence")
     add_section("Testing rules and safe harbor","testing_rule_evidence")
     add_section("Exclusions and known issues","exclusion_evidence")
+    lines.extend(["","## Source discovery",json.dumps(source_result,indent=2),"","## Local source review",json.dumps(analysis_result,indent=2)])
     lines.extend(["","## Related links discovered on the official program pages"])
     lines.extend(["- "+link for link in page["links"]] or ["- None extracted."])
     lines.extend(["","## Limitations"]+["- "+x for x in draft["limitations"]])
     (program_dir/"scope-report.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
-    return {"slug":page["slug"],"http_status":page["http_status"],"title":page["title"],"source_sha256":page["sha256"],"asset_candidates":len(draft["in_scope_assets_candidates"]),"related_links":len(page["links"]),"program_pages_fetched":len(page["pages"]),"outputs":[str(program_dir/("source-page-"+urlparse(item["final_url"]).path.rstrip("/").split("/")[-1]+"."+ext)) for item in page["pages"] for ext in ("html","txt")]+[str(program_dir/x) for x in ("intake.json","scope-draft.json","scope-report.md")]}
+    outputs=[str(program_dir/("source-page-"+urlparse(item["final_url"]).path.rstrip("/").split("/")[-1]+"."+ext)) for item in page["pages"] for ext in ("html","txt")]
+    outputs += [str(program_dir/x) for x in ("intake.json","scope-draft.json","source-discovery.json","local-analysis.json","scope-report.md")]
+    return {"slug":page["slug"],"http_status":page["http_status"],"title":page["title"],"source_sha256":page["sha256"],"asset_candidates":len(draft["in_scope_assets_candidates"]),"related_links":len(page["links"]),"program_pages_fetched":len(page["pages"]),"source_discovery":source_result,"local_analysis":analysis_result,"outputs":outputs}
