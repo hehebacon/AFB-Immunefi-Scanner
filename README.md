@@ -1,97 +1,52 @@
 # AFB Immunefi Scanner
 
-A scope-first, local-first smart-contract security research assistant for **authorized Immunefi bug bounty work**.
+A scope-first, local-first smart-contract security research assistant for authorized Immunefi research.
 
-> The scanner is an analysis assistant, not an autonomous exploitation tool. It does not send transactions to live targets, manipulate live protocols, or submit reports automatically.
+**Safety:** this project performs local source inventory and conservative source review. It does not probe live targets, send transactions, execute exploits against deployed protocols, connect wallets, or submit reports.
 
-## Current status
+## Implemented
+- Workspace initialization and readiness status.
+- Human-confirmed policy gate (scope, exclusions, testing restrictions, safe harbor, last-checked date).
+- Local Solidity inventory: SHA-256, compiler pragma, contracts/interfaces/libraries, imports.
+- Conservative source heuristics for call ordering, public/external functions, unchecked blocks, delegatecall, tx.origin, timestamps, selfdestruct, ecrecover, and low-level calls.
+- Local Slither adapter, toolchain availability checks for Slither/Aderyn/Foundry/solc.
+- JSON findings and Markdown review report generation.
+- Unit tests for core inventory, heuristic, and policy behavior.
 
-**Bootstrap / Milestone 1.** The repository currently provides a Python CLI foundation and a structured workspace layout. Integrations and analysis engines are added incrementally.
+All heuristic results are low-confidence potential leads. They are not confirmed vulnerabilities and do not assign severity.
 
-## Design principles
-
-- **Policy before code:** record program scope, exclusions, impact requirements, and testing restrictions before analysis.
-- **Evidence-first:** every potential finding must link to source locations and supporting evidence.
-- **Local verification only:** tests and PoCs run against local fixtures or explicitly permitted isolated forks.
-- **Human approval:** severity, exploitability, report quality, and submission remain human-reviewed.
-- **No live exploitation:** no fund-moving transactions, live oracle manipulation, unauthorized probing, or automatic submissions.
-
-## Pipeline
-
-1. **Program discovery & policy intake** — program URL, assets, in-scope components, exclusions, safe-harbor conditions, impact definitions.
-2. **Contract reconnaissance** — addresses, chain, verified source, proxy/implementation relationships, compiler and dependencies.
-3. **Documentation intelligence** — official docs, architecture, audits, changelogs, and public fixes.
-4. **Static analysis** — Slither, Aderyn, compiler checks, dependency inventory.
-5. **Review engines** — access control, state transitions, accounting, reentrancy, signatures, oracle assumptions, token compatibility, upgradeability, and integration boundaries.
-6. **Local verification** — unit tests, invariants, regression tests, and isolated PoCs.
-7. **Triage & reporting** — evidence, scope check, impact reasoning, confidence, duplicate/known-issue review, human approval.
-
-## Quick start
-
-Requires Python 3.11+.
-
+## Install
+Python 3.11+:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-afb-immunefi --help
-afb-immunefi init --workspace ./workspace
-afb-immunefi status --workspace ./workspace
 ```
+Without installation, use `python run.py` instead of `afb-immunefi`.
 
-Or run without installing:
-
+## Quick start
 ```bash
-python run.py --help
-python run.py init --workspace ./workspace
+afb-immunefi init --workspace ./workspace
+# Edit workspace/program/policy.yaml using official current program rules.
+afb-immunefi policy-check --workspace ./workspace
+afb-immunefi tools
+afb-immunefi inventory --source ./contracts --output ./workspace/reconnaissance/contracts.json
+afb-immunefi scan --source ./contracts --output ./workspace/findings/findings.json --workspace ./workspace
+afb-immunefi slither --source ./contracts --output ./workspace/analysis/static/slither.json --workspace ./workspace
+afb-immunefi report --findings ./workspace/findings/findings.json --output ./workspace/reports/review.md --program "Program name"
+python -m unittest discover -s tests -v
 ```
 
-## Workspace
+## Policy gate
+Before `scan` or `slither`, complete `program/policy.yaml` from the selected program's official rules. Set `scope_confirmed`, `testing_constraints_reviewed`, and `safe_harbor_reviewed` to true only after personally reviewing those conditions. Record `last_checked` and at least one in-scope asset. The scanner does not scrape or infer current program policy.
 
-```text
-workspace/
-  program/
-    policy.yaml
-    scope.yaml
-  reconnaissance/
-    contracts.json
-    sources/
-    docs/
-  analysis/
-    static/
-    review-notes/
-  findings/
-    findings.json
-  verification/
-    local-tests/
-  reports/
-```
+## Tools
+- `tools` checks local installation of Slither, Aderyn, Foundry (`forge`), and solc.
+- `slither` runs Slither only against a local directory and writes JSON output.
+- Aderyn and Foundry are detected but not automatically invoked because CLI options and project layouts can vary. Run them locally according to their official docs.
+- Heuristics can produce false positives and false negatives. Manually inspect source context, tests, invariants, and protocol assumptions.
 
-## Tool integrations (planned)
+## Not implemented
+No automatic Immunefi program scraping, remote contract fetching, RPC/fork orchestration, autonomous exploit generation, live testing, wallet integration, or automatic submission. Those require separate program-specific authorization and human review.
 
-- Slither and Aderyn for local source analysis
-- Foundry for local unit, invariant, and regression tests
-- SQLite for indexed program and finding metadata
-- Official program pages and public documentation as source material
-
-The tool will not treat automated detector output as a confirmed vulnerability. Every result starts as a **potential finding** until manually validated.
-
-## Development roadmap
-
-- [x] Repository bootstrap and CLI skeleton
-- [ ] Program policy and scope schema
-- [ ] Contract/source inventory
-- [ ] Documentation and public-history collection
-- [ ] Slither/Aderyn adapters
-- [ ] Review-engine framework
-- [ ] Local Foundry verification workflow
-- [ ] Finding triage and report generator
-- [ ] Dashboard
-
-## Responsible use
-
-Only analyze programs and assets where you have authorization. Read and follow each Immunefi program's current rules, scope, exclusions, and safe-harbor terms. Do not test live systems in ways prohibited by the program. Keep proof-of-concept work in local test environments unless the program explicitly permits a particular test.
-
-## License
-
-MIT
+See docs/OPERATIONS.md and docs/ARCHITECTURE.md.
