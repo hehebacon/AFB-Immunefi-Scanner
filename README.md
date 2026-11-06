@@ -11,7 +11,7 @@ A scope-first, local-first smart-contract security research assistant for author
 - Saves source HTML/text, fetch timestamps, HTTP status, and SHA-256 hashes.
 - Extracts scope/impact/exclusion/testing-rule evidence, chain mentions, candidate contract addresses, and related external references.
 - Local Solidity inventory and conservative source-review heuristics.
-- Human-confirmed policy gate, local Slither adapter, toolchain checks, JSON findings, Markdown reports, and unit tests.
+- Human-confirmed policy gate, local Slither and Aderyn adapters, toolchain checks, JSON findings, Markdown reports, and unit tests.
 
 Automated extraction is evidence collection, not a final scope decision. Every asset and impact remains unverified until checked against current program rules.
 
