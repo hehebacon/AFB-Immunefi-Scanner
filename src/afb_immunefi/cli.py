@@ -10,6 +10,7 @@ from .toolchain import check_tools, run_slither_local
 from .reporting import write_report
 from .program_intake import save_program_intake
 from .analysis import run_analysis
+from .deployment_verification import verify_targets_file
 
 def build_parser():
     p=argparse.ArgumentParser(prog="afb-immunefi",description="Scope-first local smart-contract research assistant.")
@@ -22,7 +23,7 @@ def build_parser():
     q=sub.add_parser("scan",help="Run conservative local source-review heuristics."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
     sub.add_parser("tools",help="Check local security-tool availability.")
     q=sub.add_parser("slither",help="Run Slither on local source after policy gate."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
-    q=sub.add_parser("report",help="Generate a Markdown review report."); q.add_argument("--findings",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--program",default="Unspecified program")
+    q=sub.add_parser("verify-deployments",help="Check deployed source verification metadata via read-only Sourcify API."); q.add_argument("--targets",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))\n    q=sub.add_parser("report",help="Generate a Markdown review report."); q.add_argument("--findings",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--program",default="Unspecified program")
     return p
 
 def main():
