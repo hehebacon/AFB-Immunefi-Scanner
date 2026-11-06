@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from .inventory import inventory_sources
 from .detectors import scan_sources
-from .toolchain import run_slither_local
+from .toolchain import run_slither_local, run_aderyn_local
 
 def _severity(value: str | None) -> str:
     normalized=(value or "").strip().lower()
@@ -63,11 +63,21 @@ def run_analysis(source: Path, workspace: Path, include_slither: bool = True) ->
     inventory=inventory_sources(source)
     heuristic=scan_sources(source)
     slither_result={"status":"not_requested"}
+    aderyn_result={"status":"not_requested"}
     slither_findings=[]
     static_dir=workspace/"analysis"/"static"
     static_dir.mkdir(parents=True,exist_ok=True)
     slither_output=static_dir/"slither.json"
     if include_slither:
+        if shutil.which("aderyn"):
+            try:
+                aderyn_output=static_dir/"aderyn.json"
+                aderyn_run=run_aderyn_local(source,aderyn_output)
+                aderyn_result={"status":"completed" if aderyn_run["output_exists"] else "completed_without_report","returncode":aderyn_run["returncode"],"output":str(aderyn_output),"note":"Native report preserved; findings are not automatically promoted to confirmed vulnerabilities."}
+            except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
+                aderyn_result={"status":"failed","error":str(exc)}
+        else:
+            aderyn_result={"status":"not_installed","note":"Install Aderyn to enable this analysis layer."}
         if shutil.which("slither"):
             try:
                 slither_result=run_slither_local(source,slither_output)
@@ -92,7 +102,7 @@ def run_analysis(source: Path, workspace: Path, include_slither: bool = True) ->
             "solidity_files":len(inventory),
             "heuristic_leads":len(heuristic),
             "slither_findings":len(slither_findings),
-            "tools":{"heuristics":"completed","slither":slither_result},
+            "tools":{"heuristics":"completed","slither":slither_result,"aderyn":aderyn_result},
         },
         "findings":findings,
         "validation_policy":{
