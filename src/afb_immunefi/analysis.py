@@ -78,7 +78,7 @@ def run_analysis(source: Path, workspace: Path, include_slither: bool = True) ->
                     "normalized_findings":len(slither_findings),
                     "note":"Non-zero exit codes may occur when detectors report findings; inspect the JSON and stderr."
                 }
-            except (OSError,TimeoutError,ValueError) as exc:
+            except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
                 slither_result={"status":"failed","error":str(exc)}
         else:
             slither_result={"status":"not_installed","note":"Install Slither to enable this analysis layer."}
