@@ -47,7 +47,7 @@ def main():
         elif a.command=="report":
             print(f"Report written: {write_report(a.findings,a.output,a.program)}")
         return 0
-    except (OSError,ValueError,PermissionError,TimeoutError,subprocess.TimeoutExpired) as exc:
+    except (OSError,ValueError,PermissionError,TimeoutError,RuntimeError,subprocess.TimeoutExpired) as exc:
         print(f"ERROR: {exc}"); return 2
 
 if __name__=="__main__": raise SystemExit(main())
