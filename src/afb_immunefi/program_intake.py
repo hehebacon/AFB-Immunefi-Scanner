@@ -162,6 +162,17 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     else:
         source_result={"status":"resources_page_not_fetched"}
     (program_dir/"source-discovery.json").write_text(json.dumps(source_result,indent=2),encoding="utf-8")
+    from .reference_intelligence import classify_references, fetch_github_history, fetch_audit_pdfs
+    resource_links=resources_page["links"] if resources_page else []
+    references=classify_references(resource_links)
+    (program_dir/"references.json").write_text(json.dumps(references,indent=2),encoding="utf-8")
+    history_result={"status":"no_repository_discovered"}
+    if source_result.get("repository"):
+        owner_repo=source_result["repository"]
+        history_result=fetch_github_history("https://github.com/"+owner_repo,workspace/"reconnaissance"/"history")
+    (program_dir/"github-history-status.json").write_text(json.dumps(history_result,indent=2),encoding="utf-8")
+    pdf_result=fetch_audit_pdfs(references,workspace/"reconnaissance"/"references"/"audits")
+    (program_dir/"audit-pdf-index.json").write_text(json.dumps(pdf_result,indent=2),encoding="utf-8")
     analysis_result={"status":"not_run"}
     if source_result.get("status")=="downloaded":
         from .inventory import inventory_sources
@@ -192,11 +203,11 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     add_section("Impacts in Scope evidence","impact_evidence")
     add_section("Testing rules and safe harbor","testing_rule_evidence")
     add_section("Exclusions and known issues","exclusion_evidence")
-    lines.extend(["","## Source discovery",json.dumps(source_result,indent=2),"","## Local source review",json.dumps(analysis_result,indent=2)])
+    lines.extend(["","## Source discovery",json.dumps(source_result,indent=2),"","## Public reference collection",json.dumps({"reference_count":len(references),"github_history":history_result,"audit_pdfs":pdf_result},indent=2),"","## Local source review",json.dumps(analysis_result,indent=2)])
     lines.extend(["","## Related links discovered on the official program pages"])
     lines.extend(["- "+link for link in page["links"]] or ["- None extracted."])
     lines.extend(["","## Limitations"]+["- "+x for x in draft["limitations"]])
     (program_dir/"scope-report.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
     outputs=[str(program_dir/("source-page-"+urlparse(item["final_url"]).path.rstrip("/").split("/")[-1]+"."+ext)) for item in page["pages"] for ext in ("html","txt")]
-    outputs += [str(program_dir/x) for x in ("intake.json","scope-draft.json","source-discovery.json","local-analysis.json","scope-report.md")]
-    return {"slug":page["slug"],"http_status":page["http_status"],"title":page["title"],"source_sha256":page["sha256"],"asset_candidates":len(draft["in_scope_assets_candidates"]),"related_links":len(page["links"]),"program_pages_fetched":len(page["pages"]),"source_discovery":source_result,"local_analysis":analysis_result,"outputs":outputs}
+    outputs += [str(program_dir/x) for x in ("intake.json","scope-draft.json","source-discovery.json","references.json","github-history-status.json","audit-pdf-index.json","local-analysis.json","scope-report.md")]
+    return {"slug":page["slug"],"http_status":page["http_status"],"title":page["title"],"source_sha256":page["sha256"],"asset_candidates":len(draft["in_scope_assets_candidates"]),"related_links":len(page["links"]),"program_pages_fetched":len(page["pages"]),"source_discovery":source_result,"reference_count":len(references),"github_history":history_result,"audit_pdfs":pdf_result,"local_analysis":analysis_result,"outputs":outputs}
