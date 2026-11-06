@@ -25,19 +25,47 @@ class ProgramIntakeTests(unittest.TestCase):
                 result = download_linked_solidity_repo([], Path(tmp))
                 self.assertEqual(result["status"], "no_github_repository_link")
 
-    def test_scope_draft_marks_candidates_unverified(self):
+    def test_scope_draft_only_uses_scope_tab_for_asset_candidates(self):
+        address = "0x0000000000000000000000000000000000000001"
         page = {
             "slug": "sample",
             "requested_url": "https://immunefi.com/bug-bounty/sample/information/",
             "fetched_at": "2026-11-06T00:00:00+00:00",
             "sha256": "abc",
-            "text": "Assets in Scope: Ethereum mainnet contract 0x0000000000000000000000000000000000000001",
+            "text": "General information",
+            "final_url": "https://immunefi.com/bug-bounty/sample/information/",
+            "links": [],
+            "pages": [
+                {
+                    "final_url": "https://immunefi.com/bug-bounty/sample/information/",
+                    "text": f"General information {address}",
+                    "links": [f"https://etherscan.io/address/{address}"],
+                    "sha256": "info"
+                },
+                {
+                    "final_url": "https://immunefi.com/bug-bounty/sample/scope/",
+                    "text": f"Assets in Scope: Ethereum mainnet contract {address}",
+                    "links": [f"https://etherscan.io/address/{address}"],
+                    "sha256": "scope"
+                }
+            ]
+        }
+        draft = build_scope_draft(page)
+        self.assertEqual(draft["in_scope_assets_candidates"][0]["address"], address)
+        self.assertEqual(draft["in_scope_assets_candidates"][0]["status"], "candidate_only")
+        self.assertEqual(draft["verification_status"], "unverified_human_review_required")
+
+    def test_information_page_alone_does_not_create_scope_candidates(self):
+        address = "0x0000000000000000000000000000000000000001"
+        page = {
+            "slug": "sample",
+            "requested_url": "https://immunefi.com/bug-bounty/sample/information/",
+            "fetched_at": "2026-11-06T00:00:00+00:00",
+            "sha256": "abc",
+            "text": f"Assets in Scope: {address}",
             "final_url": "https://immunefi.com/bug-bounty/sample/information/",
             "links": []
         }
         draft = build_scope_draft(page)
-        self.assertEqual(draft["in_scope_assets_candidates"][0]["status"], "candidate_only")
-        self.assertEqual(draft["verification_status"], "unverified_human_review_required")
+        self.assertEqual(draft["in_scope_assets_candidates"], [])
 
-if __name__ == "__main__":
-    unittest.main()
