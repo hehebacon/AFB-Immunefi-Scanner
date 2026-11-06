@@ -40,7 +40,12 @@ Generated files under `workspace/program/`:
 - `source-page-resources.html/.txt`
 - `intake.json`: fetched pages, timestamps, hashes, links
 - `scope-draft.json`: candidate assets and extracted evidence
-- `source-discovery.json`: linked repository and download status\n- `references.json`: classified public references\n- `github-history-status.json`: public commit-history collection status\n- `audit-pdf-index.json`: downloaded PDF audit index and extraction status\n- `../reconnaissance/history/`: public commit metadata\n- `../reconnaissance/references/audits/`: downloaded audit PDFs and extracted text
+- `source-discovery.json`: linked repository and download status
+- `references.json`: classified public references
+- `github-history-status.json`: public commit-history collection status
+- `audit-pdf-index.json`: downloaded PDF audit index and extraction status
+- `../reconnaissance/history/`: public commit metadata
+- `../reconnaissance/references/audits/`: downloaded audit PDFs and extracted text
 - `../reconnaissance/contracts.json`: local Solidity inventory when source was found
 - `../analysis/review-notes/source-leads.json`: potential source-review leads, with scope still marked unverified
 - `scope-report.md`: human-readable scope-style report
@@ -63,7 +68,9 @@ python -m unittest discover -s tests -v
 - Program page parsing can miss content rendered only by JavaScript.
 - Candidate addresses are not automatically treated as in-scope assets.
 - Arbitrary third-party documentation pages are classified and recorded, not recursively crawled; linked PDF documents are downloaded only when directly linked from Resources.
-- GitHub history is limited to the public API's most recent 100 commits; it is not a complete forensic history.\n- PDF text extraction can miss scanned/image-only pages and complex layouts.\n- GitHub source downloads are limited to Solidity files and do not establish that those files correspond to every in-scope deployed asset.
+- GitHub history is limited to the public API's most recent 100 commits; it is not a complete forensic history.
+- PDF text extraction can miss scanned/image-only pages and complex layouts.
+- GitHub source downloads are limited to Solidity files and do not establish that those files correspond to every in-scope deployed asset.
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
 - Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
 
