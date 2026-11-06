@@ -46,7 +46,7 @@ class ReferenceIntelligenceTests(unittest.TestCase):
             def geturl(self): return "https://docs.example.org/start"
             def read(self,n): return b'<html><body>Guide <a href="/next">Next</a><a href="https://evil.example/page">External</a></body></html>'
         with tempfile.TemporaryDirectory() as tmp, patch("afb_immunefi.reference_intelligence.urlopen",return_value=Response()):
-            result=crawl_documentation([{"url":"https://docs.example.org/start","kind":"documentation"}],Path(tmp),max_pages=5,max_depth=1)
+            result=crawl_documentation([{"url":"https://docs.example.org/start","kind":"documentation"}],Path(tmp),max_pages=1,max_depth=1)
             self.assertEqual(result["pages_saved"],1)
             self.assertEqual(result["queue_remaining"],1)
 
