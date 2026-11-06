@@ -133,14 +133,14 @@ def _ocr_pdf(pdf_path: Path, output_path: Path, page_numbers: list[int], max_pag
         selected=page_numbers[:max_pages]; total=len(selected); ocr_text=[]; attempted=0
         import tempfile
         with tempfile.TemporaryDirectory(prefix="afb-ocr-") as tmp:
-            for page_index in range(total):
-                image_prefix=str(Path(tmp)/f"page-{page_index+1}")
-                proc=subprocess.run(["pdftoppm","-f",str(page_index+1),"-l",str(page_index+1),"-r","160","-png","-singlefile",str(pdf_path),image_prefix],capture_output=True,text=True,timeout=45,check=False)
+            for page_number in selected:
+                image_prefix=str(Path(tmp)/f"page-{page_number}")
+                proc=subprocess.run(["pdftoppm","-f",str(page_number),"-l",str(page_number),"-r","160","-png","-singlefile",str(pdf_path),image_prefix],capture_output=True,text=True,timeout=45,check=False)
                 image_path=Path(image_prefix+".png")
                 if proc.returncode or not image_path.exists(): continue
                 attempted+=1
                 out=subprocess.run(["tesseract",str(image_path),"stdout","-l","eng"],capture_output=True,text=True,timeout=45,check=False)
-                if out.returncode==0 and out.stdout.strip(): ocr_text.append(f"[OCR Page {page_index+1}]\n{out.stdout.strip()[:12000]}")
+                if out.returncode==0 and out.stdout.strip(): ocr_text.append(f"[OCR Page {page_number}]\n{out.stdout.strip()[:12000]}")
         if ocr_text:
             with output_path.open("a",encoding="utf-8") as stream: stream.write("\n\n"+"\n\n".join(ocr_text)+"\n")
         return {"status":"completed","pages_considered":total,"pages_rendered":attempted,"pages_with_text":len(ocr_text),"page_cap":max_pages,"truncated":len(page_numbers)>max_pages}
