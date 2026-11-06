@@ -120,7 +120,7 @@ def build_scope_draft(page: dict) -> dict:
         "limitations":["Page text extraction may omit content rendered only by JavaScript.","Addresses found on the Scope page are candidates and require exact asset verification.","A page mention does not by itself prove that an asset or impact is eligible.","Third-party links are recorded as references but are not automatically fetched.","No contract probing, RPC calls, transactions, or live testing are performed."]
     }
 
-def save_program_intake(url: str, workspace: Path) -> dict:
+def save_program_intake(url: str, workspace: Path, max_commits: int=1000) -> dict:
     from .workspace import initialize_workspace
     if not (workspace/"program"/"policy.yaml").exists():
         initialize_workspace(workspace)
@@ -172,7 +172,7 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     history_result={"status":"no_repository_discovered"}
     if source_result.get("repository"):
         owner_repo=source_result["repository"]
-        history_result=fetch_github_history("https://github.com/"+owner_repo,workspace/"reconnaissance"/"history")
+        history_result=fetch_github_history("https://github.com/"+owner_repo,workspace/"reconnaissance"/"history",max_commits=max_commits)
     (program_dir/"github-history-status.json").write_text(json.dumps(history_result,indent=2),encoding="utf-8")
     pdf_result=fetch_audit_pdfs(references,workspace/"reconnaissance"/"references"/"audits")
     (program_dir/"audit-pdf-index.json").write_text(json.dumps(pdf_result,indent=2),encoding="utf-8")
