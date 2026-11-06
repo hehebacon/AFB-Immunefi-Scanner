@@ -17,7 +17,7 @@ def build_parser():
     sub=p.add_subparsers(dest="command",required=True)
     for name,help_text in [("init","Create a research workspace."),("status","Show workspace readiness."),("policy-check","Validate human-confirmed program policy.")]:
         q=sub.add_parser(name,help=help_text); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
-    q=sub.add_parser("program-url",help="Fetch an official Immunefi program page and draft an evidence-based scope report."); q.add_argument("--url",required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
+    q=sub.add_parser("program-url",help="Fetch an official Immunefi program page and draft an evidence-based scope report."); q.add_argument("--url",required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace")); q.add_argument("--max-commits",type=int,default=1000,help="Git history pages to collect (1-5000)")
     q=sub.add_parser("inventory",help="Inventory local Solidity source files."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True)
     q=sub.add_parser("analyze",help="Run unified local analysis with heuristics and optional Slither."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace")); q.add_argument("--no-static-tools",action="store_true")
     q=sub.add_parser("scan",help="Run conservative local source-review heuristics."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
@@ -37,7 +37,7 @@ def main():
             policy=load_policy(a.workspace/"program/policy.yaml"); issues=policy_issues(policy)
             print(json.dumps({"valid":not issues,"issues":issues},indent=2)); return 0 if not issues else 2
         elif a.command=="program-url":
-            result=save_program_intake(a.url,a.workspace); print(json.dumps(result,indent=2))
+            result=save_program_intake(a.url,a.workspace,max_commits=a.max_commits); print(json.dumps(result,indent=2))
         elif a.command=="inventory":
             records=inventory_sources(a.source); a.output.parent.mkdir(parents=True,exist_ok=True); a.output.write_text(json.dumps({"source_root":str(a.source.resolve()),"files":records},indent=2),encoding="utf-8"); print(f"Inventoried {len(records)} Solidity files -> {a.output}")
         elif a.command=="analyze":
