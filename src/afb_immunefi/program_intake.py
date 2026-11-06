@@ -90,7 +90,8 @@ def build_scope_draft(page: dict) -> dict:
     scope_text=" ".join(scope_chunks)
     full_addresses=set(re.findall(r"\b0x[a-fA-F0-9]{40}\b",scope_text))
     partial_addresses=set(re.findall(r"\b0x[a-fA-F0-9]{4,12}\.\.\.[a-fA-F0-9]{4,12}\b",scope_text))
-    scope_links=[link for item in page.get("pages",[page]) for link in item.get("links",[]) if urlparse(link).hostname and any(host in urlparse(link).hostname for host in ("etherscan.io","arbiscan.io","basescan.org"))]
+    scope_pages=[item for item in page.get("pages",[page]) if urlparse(item["final_url"]).path.rstrip("/").endswith("/scope")]
+    scope_links=[link for item in scope_pages for link in item.get("links",[]) if urlparse(link).hostname and any(host in urlparse(link).hostname for host in ("etherscan.io","arbiscan.io","basescan.org"))]
     for link in scope_links:
         match=re.search(r"/address/(0x[a-fA-F0-9]{40})",link)
         if match: full_addresses.add(match.group(1))
@@ -121,11 +122,22 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     page=fetch_program_page(url)
     related=[]
     slug=page["slug"]
+    # Derive sibling tabs from the validated program slug as a fallback for JS-rendered navigation.
+    requested_tab=urlparse(url).path.rstrip("/").split("/")[-1]
+    for tab in ("scope","resources"):
+        if tab==requested_tab: continue
+        tab_url=f"https://immunefi.com/bug-bounty/{slug}/{tab}/"
+        try:
+            fetched=fetch_program_page(tab_url)
+            if fetched["http_status"]==200: related.append(fetched)
+        except (RuntimeError,ValueError):
+            pass
     for link in page["links"]:
         parsed=urlparse(link)
         if parsed.hostname not in ALLOWED_HOSTS: continue
         match=re.fullmatch(rf"/bug-bounty/{re.escape(slug)}/(scope|resources)/?",parsed.path)
         if match:
+            if any(item["final_url"]==link for item in related): continue
             try: related.append(fetch_program_page(link))
             except (RuntimeError,ValueError): pass
     page["pages"]=[page]+related
