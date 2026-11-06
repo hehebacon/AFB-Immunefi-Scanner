@@ -2,18 +2,17 @@
 
 A scope-first, local-first smart-contract security research assistant for authorized Immunefi research.
 
-**Safety:** this project performs local source inventory and conservative source review. It does not probe live targets, send transactions, execute exploits against deployed protocols, connect wallets, or submit reports.
+**Safety:** this project gathers public program information and analyzes local source code. It does not probe live targets, send transactions, execute exploits against deployed protocols, connect wallets, or submit reports.
 
 ## Implemented
-- One-URL Immunefi program intake: fetches the official information page, identifies the program slug, saves source HTML/text and builds an evidence-based scope draft/report.\n- Workspace initialization and readiness status.
-- Human-confirmed policy gate (scope, exclusions, testing restrictions, safe harbor, last-checked date).
-- Local Solidity inventory: SHA-256, compiler pragma, contracts/interfaces/libraries, imports.
-- Conservative source heuristics for call ordering, public/external functions, unchecked blocks, delegatecall, tx.origin, timestamps, selfdestruct, ecrecover, and low-level calls.
-- Local Slither adapter, toolchain availability checks for Slither/Aderyn/Foundry/solc.
-- JSON findings and Markdown review report generation.
-- Unit tests for core inventory, heuristic, and policy behavior.
+- One-URL Immunefi intake: identifies the program slug from an official URL.
+- Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.
+- Saves source HTML/text, fetch timestamps, HTTP status, and SHA-256 hashes.
+- Extracts scope/impact/exclusion/testing-rule evidence, chain mentions, candidate contract addresses, and related external references.
+- Local Solidity inventory and conservative source-review heuristics.
+- Human-confirmed policy gate, local Slither adapter, toolchain checks, JSON findings, Markdown reports, and unit tests.
 
-All heuristic results are low-confidence potential leads. They are not confirmed vulnerabilities and do not assign severity.
+Automated extraction is evidence collection, not a final scope decision. Every asset and impact remains unverified until checked against current program rules.
 
 ## Install
 Python 3.11+:
@@ -24,29 +23,43 @@ pip install -e .
 ```
 Without installation, use `python run.py` instead of `afb-immunefi`.
 
-## Quick start
+## One-URL workflow
+Paste one official Immunefi Information URL:
 ```bash
-afb-immunefi init --workspace ./workspace
-# Edit workspace/program/policy.yaml using official current program rules.
+afb-immunefi program-url \
+  --url "https://immunefi.com/bug-bounty/ssvnetwork/information/" \
+  --workspace ./workspace
+```
+
+The command follows only the same program's Immunefi Scope and Resources tabs. It records third-party links found there as references, but does not automatically crawl arbitrary external sites or clone repositories.
+
+Generated files under `workspace/program/`:
+- `source-page-information.html/.txt`
+- `source-page-scope.html/.txt`
+- `source-page-resources.html/.txt`
+- `intake.json`: fetched pages, timestamps, hashes, links
+- `scope-draft.json`: candidate assets and extracted evidence
+- `scope-report.md`: human-readable scope-style report
+
+If a tab is unavailable, its file will not be created. Check the returned output list.
+
+## Local source analysis
+After reviewing the scope report and completing `workspace/program/policy.yaml` from the official rules:
+```bash
 afb-immunefi policy-check --workspace ./workspace
 afb-immunefi tools
 afb-immunefi inventory --source ./contracts --output ./workspace/reconnaissance/contracts.json
 afb-immunefi scan --source ./contracts --output ./workspace/findings/findings.json --workspace ./workspace
 afb-immunefi slither --source ./contracts --output ./workspace/analysis/static/slither.json --workspace ./workspace
-afb-immunefi report --findings ./workspace/findings/findings.json --output ./workspace/reports/review.md --program "Program name"
+afb-immunefi report --findings ./workspace/findings/findings.json --output ./workspace/reports/review.md
 python -m unittest discover -s tests -v
 ```
 
-## Policy gate
-Before `scan` or `slither`, complete `program/policy.yaml` from the selected program's official rules. Set `scope_confirmed`, `testing_constraints_reviewed`, and `safe_harbor_reviewed` to true only after personally reviewing those conditions. Record `last_checked` and at least one in-scope asset. The scanner does not scrape or infer current program policy.
+## Important limitations
+- Program page parsing can miss content rendered only by JavaScript.
+- Candidate addresses are not automatically treated as in-scope assets.
+- External documentation, repositories, and explorer links are recorded but not yet fetched/analyzed automatically.
+- No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
+- Heuristic results are potential review leads, not confirmed vulnerabilities.
 
-## Tools
-- `tools` checks local installation of Slither, Aderyn, Foundry (`forge`), and solc.
-- `slither` runs Slither only against a local directory and writes JSON output.
-- Aderyn and Foundry are detected but not automatically invoked because CLI options and project layouts can vary. Run them locally according to their official docs.
-- Heuristics can produce false positives and false negatives. Manually inspect source context, tests, invariants, and protocol assumptions.
-
-## Not implemented
-No automatic Immunefi program scraping, remote contract fetching, RPC/fork orchestration, autonomous exploit generation, live testing, wallet integration, or automatic submission. Those require separate program-specific authorization and human review.
-
-See docs/OPERATIONS.md and docs/ARCHITECTURE.md.
+See `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, and `docs/REVIEW_CHECKLIST.md`.
