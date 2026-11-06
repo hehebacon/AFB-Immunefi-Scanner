@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "afb-immunefi-scanner"
+version = "0.1.0"
+description = "Scope-first, local-first smart-contract security research assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "AFB Immunefi Scanner contributors" }]
+dependencies = ["PyYAML>=6.0.1"]
+
+[project.scripts]
+afb-immunefi = "afb_immunefi.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
