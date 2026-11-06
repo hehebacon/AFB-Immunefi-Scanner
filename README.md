@@ -32,7 +32,7 @@ afb-immunefi program-url \
   --workspace ./workspace
 ```
 
-The command fetches the same program's Information, Scope and Resources tabs. If Resources links a public GitHub repository, it downloads only `.sol` files (size/file-count capped), records recent public commit metadata, classifies documentation/explorer/audit references, and downloads linked PDF documents within strict size limits. PDF text is extracted when possible. Repository code is never executed.
+The command initializes the workspace if needed, then fetches the same program's Information, Scope and Resources tabs. If Resources links a public GitHub repository, it downloads only `.sol` files (size/file-count capped), records recent public commit metadata, classifies documentation/explorer/audit references, and downloads linked PDF documents within strict size limits. PDF text is extracted when possible. Repository code is never executed.
 
 Generated files under `workspace/program/`:
 - `source-page-information.html/.txt`
@@ -60,7 +60,7 @@ afb-immunefi tools
 afb-immunefi inventory --source ./contracts --output ./workspace/reconnaissance/contracts.json
 afb-immunefi analyze --source ./contracts --output ./workspace/findings/analysis.json --workspace ./workspace
 afb-immunefi slither --source ./contracts --output ./workspace/analysis/static/slither.json --workspace ./workspace
-afb-immunefi report --findings ./workspace/findings/findings.json --output ./workspace/reports/review.md
+afb-immunefi report --findings ./workspace/findings/analysis.json --output ./workspace/reports/review.md
 python -m unittest discover -s tests -v
 ```
 
