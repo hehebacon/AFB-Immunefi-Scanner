@@ -67,4 +67,4 @@ python -m unittest discover -s tests -v
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
 - Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
 
-See `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, and `docs/REVIEW_CHECKLIST.md`.
+See `docs/ANALYSIS_ENGINE.md`, `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, and `docs/REVIEW_CHECKLIST.md`.
