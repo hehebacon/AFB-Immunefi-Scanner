@@ -6,7 +6,8 @@ A scope-first, local-first smart-contract security research assistant for author
 
 ## Implemented
 - One-URL Immunefi intake: identifies the program slug from an official URL.
-- Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.\n- Finds a GitHub repository linked from the Resources page, downloads only Solidity files from its public archive, then runs local inventory and heuristic review.
+- Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.
+- Finds a GitHub repository linked from the Resources page, downloads only Solidity files from its public archive, then runs local inventory and heuristic review.
 - Saves source HTML/text, fetch timestamps, HTTP status, and SHA-256 hashes.
 - Extracts scope/impact/exclusion/testing-rule evidence, chain mentions, candidate contract addresses, and related external references.
 - Local Solidity inventory and conservative source-review heuristics.
@@ -39,7 +40,10 @@ Generated files under `workspace/program/`:
 - `source-page-resources.html/.txt`
 - `intake.json`: fetched pages, timestamps, hashes, links
 - `scope-draft.json`: candidate assets and extracted evidence
-- `source-discovery.json`: linked repository and download status\n- `../reconnaissance/contracts.json`: local Solidity inventory when source was found\n- `../analysis/review-notes/source-leads.json`: potential source-review leads, with scope still marked unverified\n- `scope-report.md`: human-readable scope-style report
+- `source-discovery.json`: linked repository and download status
+- `../reconnaissance/contracts.json`: local Solidity inventory when source was found
+- `../analysis/review-notes/source-leads.json`: potential source-review leads, with scope still marked unverified
+- `scope-report.md`: human-readable scope-style report
 
 If a tab is unavailable, its file will not be created. Check the returned output list.
 
@@ -49,7 +53,7 @@ After reviewing the scope report and completing `workspace/program/policy.yaml` 
 afb-immunefi policy-check --workspace ./workspace
 afb-immunefi tools
 afb-immunefi inventory --source ./contracts --output ./workspace/reconnaissance/contracts.json
-afb-immunefi scan --source ./contracts --output ./workspace/findings/findings.json --workspace ./workspace
+afb-immunefi analyze --source ./contracts --output ./workspace/findings/analysis.json --workspace ./workspace
 afb-immunefi slither --source ./contracts --output ./workspace/analysis/static/slither.json --workspace ./workspace
 afb-immunefi report --findings ./workspace/findings/findings.json --output ./workspace/reports/review.md
 python -m unittest discover -s tests -v
@@ -58,8 +62,9 @@ python -m unittest discover -s tests -v
 ## Important limitations
 - Program page parsing can miss content rendered only by JavaScript.
 - Candidate addresses are not automatically treated as in-scope assets.
-- Non-GitHub documentation and arbitrary third-party pages are recorded but not automatically crawled.\n- GitHub source downloads are limited to Solidity files and do not establish that those files correspond to every in-scope deployed asset.
+- Non-GitHub documentation and arbitrary third-party pages are recorded but not automatically crawled.
+- GitHub source downloads are limited to Solidity files and do not establish that those files correspond to every in-scope deployed asset.
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
-- Heuristic results are potential review leads, not confirmed vulnerabilities.
+- Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
 
 See `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, and `docs/REVIEW_CHECKLIST.md`.
