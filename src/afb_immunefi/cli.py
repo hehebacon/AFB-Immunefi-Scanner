@@ -23,7 +23,7 @@ def build_parser():
     q=sub.add_parser("scan",help="Run conservative local source-review heuristics."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
     sub.add_parser("tools",help="Check local security-tool availability.")
     q=sub.add_parser("slither",help="Run Slither on local source after policy gate."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
-    q=sub.add_parser("verify-deployments",help="Check deployed source verification metadata via read-only Sourcify API."); q.add_argument("--targets",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
+    q=sub.add_parser("verify-deployments",help="Check deployed source verification metadata via read-only Sourcify API."); q.add_argument("--targets",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace")); q.add_argument("--source",type=Path,help="Local downloaded Solidity source tree to compare against verified source")
     q=sub.add_parser("report",help="Generate a Markdown review report."); q.add_argument("--findings",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--program",default="Unspecified program")
     return p
 
@@ -55,7 +55,7 @@ def main():
             result=run_slither_local(a.source,a.output); print(json.dumps(result,indent=2)); return int(result["returncode"])
         elif a.command=="verify-deployments":
             require_policy(a.workspace/"program/policy.yaml")
-            result=verify_targets_file(a.targets,a.output)
+            result=verify_targets_file(a.targets,a.output,source_root=a.source)
             print(json.dumps({"output":str(a.output),"checked":len(result["results"]),"verified_matches":sum(x.get("status")=="verified_match" for x in result["results"])},indent=2))
         elif a.command=="report":
             print(f"Report written: {write_report(a.findings,a.output,a.program)}")
