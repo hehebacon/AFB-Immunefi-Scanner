@@ -87,7 +87,15 @@ def _section_extract(text: str, terms: tuple[str,...]) -> list[str]:
 def build_scope_draft(page: dict) -> dict:
     text=page.get("combined_text",page["text"])
     scope_chunks=_section_extract(text,("assets in scope",))
-    address_candidates=sorted(set(re.findall(r"\b0x[a-fA-F0-9]{40}\b"," ".join(scope_chunks))))
+    scope_text=" ".join(scope_chunks)
+    full_addresses=set(re.findall(r"\b0x[a-fA-F0-9]{40}\b",scope_text))
+    partial_addresses=set(re.findall(r"\b0x[a-fA-F0-9]{4,12}\.\.\.[a-fA-F0-9]{4,12}\b",scope_text))
+    scope_links=[link for item in page.get("pages",[page]) for link in item.get("links",[]) if urlparse(link).hostname and any(host in urlparse(link).hostname for host in ("etherscan.io","arbiscan.io","basescan.org"))]
+    for link in scope_links:
+        match=re.search(r"/address/(0x[a-fA-F0-9]{40})",link)
+        if match: full_addresses.add(match.group(1))
+    address_candidates=[{"address":a,"status":"candidate_only","evidence_source":"Immunefi Scope page or linked block explorer"} for a in sorted(full_addresses)]
+    address_candidates.extend({"address_fragment":a,"status":"partial_unverified","evidence_source":"Immunefi Scope page"} for a in sorted(partial_addresses))
     chain_terms=("ethereum","arbitrum","optimism","polygon","base","bnb chain","avalanche","solana","fantom","gnosis")
     chains=sorted({term for term in chain_terms if term in text.lower()})
     return {
