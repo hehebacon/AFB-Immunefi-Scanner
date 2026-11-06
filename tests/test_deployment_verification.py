@@ -21,8 +21,8 @@ class DeploymentVerificationTests(unittest.TestCase):
         from pathlib import Path
         from afb_immunefi.deployment_verification import _compare_sources
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp); (root/"Vault.sol").write_text("contract Vault {}\\n",encoding="utf-8")
-            result=_compare_sources({"Vault.sol":{"content":"contract Vault {}\\r\\n"}},root)
+            root=Path(tmp); (root/"Vault.sol").write_text("contract Vault {}"+chr(10),encoding="utf-8")
+            result=_compare_sources({"Vault.sol":{"content":"contract Vault {}"+chr(13)+chr(10)}},root)
             self.assertEqual(result["status"],"exact_source_tree_match")
             self.assertEqual(result["exact_matches"],1)
 
