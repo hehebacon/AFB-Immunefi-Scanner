@@ -2,7 +2,7 @@
 
 ## What the tool can establish
 
-The scanner operates on a local source directory. It records source inventory and deterministic source-review leads. If Slither is installed, it also normalizes Slither's JSON detector output into the common finding format.
+The scanner operates on a local source directory. It records source inventory and deterministic source-review leads. If Slither is installed, it normalizes Slither's JSON detector output into the common finding format. If Aderyn is installed, it runs Aderyn against the local project and preserves its native JSON report for review.
 
 The unified command is:
 
@@ -39,7 +39,7 @@ A detector can identify a suspicious pattern without proving that an attacker ca
 The JSON output records:
 - number of Solidity files inventoried;
 - number of heuristic leads;
-- number of normalized Slither detector elements;
+- number of normalized Slither detector elements;\n- whether Aderyn ran and where its native report was saved;
 - whether Slither was completed, missing, or failed;
 - a fixed validation policy that keeps all machine-generated results unverified.
 
