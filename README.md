@@ -80,9 +80,10 @@ Create `workspace/deployment-targets.json` with chain IDs and exact contract add
 Replace the example address before running:
 
 ```bash
-afb-immunefi verify-deployments --targets ./workspace/deployment-targets.json --output ./workspace/verification/deployed-source.json --workspace ./workspace
+afb-immunefi verify-deployments --targets ./workspace/deployment-targets.json --output ./workspace/verification/deployed-source.json --workspace ./workspace \
+  --source ./workspace/reconnaissance/sources/OWNER-REPO
 ```
-This queries Sourcify public verification metadata only. It does not call contract methods, send transactions, or prove Immunefi scope. An unavailable Sourcify record is **unknown**, not evidence of an unverified or malicious contract.
+The `--source` option compares every returned verified Solidity source file with the downloaded local file using SHA-256 after newline normalisation. A complete exact comparison plus Sourcify `exact_match` yields `exact_deployment_and_source_tree_match`; missing or differing files remain unresolved. This queries Sourcify public verification metadata only. It does not call contract methods, send transactions, or prove Immunefi scope. An unavailable Sourcify record is **unknown**, not evidence of an unverified or malicious contract.
 
 ## Important limitations
 - Program page parsing can miss content rendered only by JavaScript.
@@ -90,7 +91,7 @@ This queries Sourcify public verification metadata only. It does not call contra
 - Documentation crawling is intentionally bounded (40 pages, depth 2, same host, 2 MB/page); JavaScript-rendered content, linked external hosts and deeper pages may be missed.
 - Git history is paginated beyond the former 100-commit ceiling (default 1,000, hard cap 5,000); this is still not an unlimited forensic archive.
 - OCR is optional and requires `tesseract-ocr` plus `poppler-utils`; No extra Python package is required; install the system binaries with `sudo apt install tesseract-ocr poppler-utils`. OCR quality depends on scan quality/language packs and is capped at 120 pages per PDF.
-- GitHub source downloads remain limited to Solidity files and do not establish deployed-source correspondence by themselves. Use the optional Sourcify verification workflow for address/chain-specific metadata checks; only an exact match is strong source-match evidence, and it does not establish Immunefi scope.
+- GitHub source downloads remain limited to Solidity files and do not establish deployed-source correspondence by themselves. Use the optional Sourcify workflow for address/chain-specific deployed-bytecode verification and local source-file comparison. Exact deployed match plus exact local source-tree match is strong correspondence evidence, but still does not establish Immunefi scope; proxy implementations may need separate targets.
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
 - Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
 
