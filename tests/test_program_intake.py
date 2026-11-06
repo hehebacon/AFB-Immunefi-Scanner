@@ -1,5 +1,6 @@
 import unittest
 from afb_immunefi.program_intake import validate_program_url, build_scope_draft
+from afb_immunefi.source_discovery import download_linked_solidity_repo
 
 class ProgramIntakeTests(unittest.TestCase):
     def test_accepts_program_pages_and_extracts_slug(self):
@@ -15,6 +16,14 @@ class ProgramIntakeTests(unittest.TestCase):
     def test_rejects_wrong_path(self):
         with self.assertRaises(ValueError):
             validate_program_url("https://immunefi.com/bug-bounty/ssvnetwork/")
+
+    def test_source_discovery_skips_when_no_repository_link_exists(self):
+        with self.subTest("no linked source repository"):
+            import tempfile
+            from pathlib import Path
+            with tempfile.TemporaryDirectory() as tmp:
+                result = download_linked_solidity_repo([], Path(tmp))
+                self.assertEqual(result["status"], "no_github_repository_link")
 
     def test_scope_draft_marks_candidates_unverified(self):
         page = {
