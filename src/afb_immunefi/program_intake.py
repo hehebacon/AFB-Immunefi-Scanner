@@ -121,6 +121,9 @@ def build_scope_draft(page: dict) -> dict:
     }
 
 def save_program_intake(url: str, workspace: Path) -> dict:
+    from .workspace import initialize_workspace
+    if not (workspace/"program"/"policy.yaml").exists():
+        initialize_workspace(workspace)
     page=fetch_program_page(url)
     related=[]
     slug=page["slug"]
