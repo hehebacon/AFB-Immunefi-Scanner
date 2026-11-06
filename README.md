@@ -6,7 +6,7 @@ A scope-first, local-first smart-contract security research assistant for author
 
 ## Implemented
 - One-URL Immunefi intake: identifies the program slug from an official URL.
-- Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.
+- Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.\n- Finds a GitHub repository linked from the Resources page, downloads only Solidity files from its public archive, then runs local inventory and heuristic review.
 - Saves source HTML/text, fetch timestamps, HTTP status, and SHA-256 hashes.
 - Extracts scope/impact/exclusion/testing-rule evidence, chain mentions, candidate contract addresses, and related external references.
 - Local Solidity inventory and conservative source-review heuristics.
@@ -31,7 +31,7 @@ afb-immunefi program-url \
   --workspace ./workspace
 ```
 
-The command follows only the same program's Immunefi Scope and Resources tabs. It records third-party links found there as references, but does not automatically crawl arbitrary external sites or clone repositories.
+The command follows only the same program's Immunefi Scope and Resources tabs. If Resources links a public GitHub repository, it downloads only `.sol` files (size/file-count capped) without executing repository code, then runs local source inventory and conservative review heuristics. Other external links are recorded as references, not crawled.
 
 Generated files under `workspace/program/`:
 - `source-page-information.html/.txt`
@@ -39,7 +39,7 @@ Generated files under `workspace/program/`:
 - `source-page-resources.html/.txt`
 - `intake.json`: fetched pages, timestamps, hashes, links
 - `scope-draft.json`: candidate assets and extracted evidence
-- `scope-report.md`: human-readable scope-style report
+- `source-discovery.json`: linked repository and download status\n- `../reconnaissance/contracts.json`: local Solidity inventory when source was found\n- `../analysis/review-notes/source-leads.json`: potential source-review leads, with scope still marked unverified\n- `scope-report.md`: human-readable scope-style report
 
 If a tab is unavailable, its file will not be created. Check the returned output list.
 
@@ -58,7 +58,7 @@ python -m unittest discover -s tests -v
 ## Important limitations
 - Program page parsing can miss content rendered only by JavaScript.
 - Candidate addresses are not automatically treated as in-scope assets.
-- External documentation, repositories, and explorer links are recorded but not yet fetched/analyzed automatically.
+- Non-GitHub documentation and arbitrary third-party pages are recorded but not automatically crawled.\n- GitHub source downloads are limited to Solidity files and do not establish that those files correspond to every in-scope deployed asset.
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
 - Heuristic results are potential review leads, not confirmed vulnerabilities.
 
