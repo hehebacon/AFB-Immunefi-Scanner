@@ -57,7 +57,7 @@ def _slither_findings(path: Path, source_root: Path) -> list[dict]:
             })
     return findings
 
-def run_analysis(source: Path, workspace: Path, include_slither: bool = True) -> dict:
+def run_analysis(source: Path, workspace: Path, include_static_tools: bool = True) -> dict:
     if not source.is_dir():
         raise NotADirectoryError(f"Source directory does not exist: {source}")
     inventory=inventory_sources(source)
@@ -68,7 +68,7 @@ def run_analysis(source: Path, workspace: Path, include_slither: bool = True) ->
     static_dir=workspace/"analysis"/"static"
     static_dir.mkdir(parents=True,exist_ok=True)
     slither_output=static_dir/"slither.json"
-    if include_slither:
+    if include_static_tools:
         if shutil.which("aderyn"):
             try:
                 aderyn_output=static_dir/"aderyn.json"
