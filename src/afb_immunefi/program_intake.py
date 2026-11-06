@@ -69,7 +69,7 @@ def fetch_program_page(url: str) -> dict:
     for href in parser.links:
         absolute=urljoin(final_url,href)
         parsed=urlparse(absolute)
-        if parsed.scheme=="https" and parsed.hostname and (parsed.hostname in ALLOWED_HOSTS or parsed.hostname.endswith(".immunefi.com")):
+        if parsed.scheme=="https" and parsed.hostname:
             if absolute not in links: links.append(absolute)
     return {"slug":slug,"requested_url":clean_url,"final_url":final_url,"http_status":status,"content_type":content_type,"fetched_at":datetime.now(timezone.utc).isoformat(),"sha256":hashlib.sha256(raw).hexdigest(),"title":" ".join(parser.title_parts).strip() or None,"text":text,"links":links,"html":html}
 
@@ -103,7 +103,7 @@ def build_scope_draft(page: dict) -> dict:
         "impact_evidence":_section_extract(text,("impacts in scope","impact in scope","impact","severity")),
         "testing_rule_evidence":_section_extract(text,("proof of concept","testing rules","testing restrictions","safe harbor","responsible disclosure")),
         "exclusion_evidence":_section_extract(text,("known issues","not accepted","exclusions","out of scope","excluded vulnerability")),
-        "related_official_links":page["links"],
+        "related_links":page["links"],
         "limitations":["Page text extraction may omit content rendered only by JavaScript.","Address and chain matches are candidates, not confirmed in-scope assets.","No third-party pages, APIs, RPC endpoints, or live targets were queried.","A human must compare every claim with the current official program rules."]
     }
 
@@ -129,7 +129,7 @@ def save_program_intake(url: str, workspace: Path) -> dict:
     add_section("Impact evidence","impact_evidence")
     add_section("Testing rules and safe harbor","testing_rule_evidence")
     add_section("Exclusions and known issues","exclusion_evidence")
-    lines.extend(["","## Related Immunefi links"])
+    lines.extend(["","## Related links discovered on the official program page"])
     lines.extend([f"- {link}" for link in page["links"]] or ["- None extracted."])
     lines.extend(["","## Limitations"]+[f"- {x}" for x in draft["limitations"]])
     (program_dir/"scope-report.md").write_text("\n".join(lines)+"\n",encoding="utf-8")
