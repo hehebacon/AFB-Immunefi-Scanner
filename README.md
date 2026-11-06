@@ -7,7 +7,7 @@ A scope-first, local-first smart-contract security research assistant for author
 ## Implemented
 - One-URL Immunefi intake: identifies the program slug from an official URL.
 - Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.
-- Finds a GitHub repository linked from Resources, downloads Solidity files only, records up to 100 public commits, classifies linked references, and downloads linked audit PDFs (with text extraction when possible).
+- Finds a GitHub repository linked from Resources, downloads Solidity files only, paginates public Git history (default cap 1,000 commits; hard cap 5,000), crawls linked documentation on the same host (bounded to 40 pages and depth 2), classifies references, and downloads linked audit PDFs with text extraction plus optional OCR for image-only pages.
 - Saves source HTML/text, fetch timestamps, HTTP status, and SHA-256 hashes.
 - Extracts scope/impact/exclusion/testing-rule evidence, chain mentions, candidate contract addresses, and related external references.
 - Local Solidity inventory and conservative source-review heuristics.
@@ -43,7 +43,8 @@ Generated files under `workspace/program/`:
 - `source-discovery.json`: linked repository and download status
 - `references.json`: classified public references
 - `github-history-status.json`: public commit-history collection status
-- `audit-pdf-index.json`: downloaded PDF audit index and extraction status
+- `audit-pdf-index.json`: downloaded PDF audit index, text extraction and OCR status
+- `documentation-crawl-index.json`: bounded same-host documentation crawl index
 - `../reconnaissance/history/`: public commit metadata
 - `../reconnaissance/references/audits/`: downloaded audit PDFs and extracted text
 - `../reconnaissance/contracts.json`: local Solidity inventory when source was found
@@ -64,13 +65,31 @@ afb-immunefi report --findings ./workspace/findings/analysis.json --output ./wor
 python -m unittest discover -s tests -v
 ```
 
+
+## Deployed-source verification (read-only)
+Create `workspace/deployment-targets.json` with chain IDs and exact contract addresses copied from the official Scope page:
+
+```json
+{
+  "targets": [
+    {"label": "Vault", "chain_id": "1", "address": "0x0000000000000000000000000000000000000000"}
+  ]
+}
+```
+Replace the example address before running:
+
+```bash
+afb-immunefi verify-deployments --targets ./workspace/deployment-targets.json --output ./workspace/verification/deployed-source.json --workspace ./workspace
+```
+This queries Sourcify public verification metadata only. It does not call contract methods, send transactions, or prove Immunefi scope. An unavailable Sourcify record is **unknown**, not evidence of an unverified or malicious contract.
+
 ## Important limitations
 - Program page parsing can miss content rendered only by JavaScript.
 - Candidate addresses are not automatically treated as in-scope assets.
-- Arbitrary third-party documentation pages are classified and recorded, not recursively crawled; linked PDF documents are downloaded only when directly linked from Resources.
-- GitHub history is limited to the public API's most recent 100 commits; it is not a complete forensic history.
-- PDF text extraction can miss scanned/image-only pages and complex layouts.
-- GitHub source downloads are limited to Solidity files and do not establish that those files correspond to every in-scope deployed asset.
+- Documentation crawling is intentionally bounded (40 pages, depth 2, same host, 2 MB/page); JavaScript-rendered content, linked external hosts and deeper pages may be missed.
+- Git history is paginated beyond the former 100-commit ceiling (default 1,000, hard cap 5,000); this is still not an unlimited forensic archive.
+- OCR is optional and requires `tesseract-ocr` plus `poppler-utils`; install Python extras with `pip install -e '.[ocr]'`. OCR quality depends on scan quality/language packs and is capped at 120 pages per PDF.
+- GitHub source downloads remain limited to Solidity files and do not establish deployed-source correspondence by themselves. Use the optional Sourcify verification workflow for address/chain-specific metadata checks; only an exact match is strong source-match evidence, and it does not establish Immunefi scope.
 - No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
 - Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
 
