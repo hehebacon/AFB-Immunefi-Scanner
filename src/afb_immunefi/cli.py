@@ -1,6 +1,6 @@
 """Command-line interface for AFB Immunefi Scanner."""
 from __future__ import annotations
-import argparse, json
+import argparse, json, subprocess
 from pathlib import Path
 from .workspace import initialize_workspace, workspace_status
 from .policy import require_policy, load_policy, policy_issues
@@ -43,7 +43,7 @@ def main():
         elif a.command=="report":
             print(f"Report written: {write_report(a.findings,a.output,a.program)}")
         return 0
-    except (OSError,ValueError,PermissionError,TimeoutError) as exc:
+    except (OSError,ValueError,PermissionError,TimeoutError,subprocess.TimeoutExpired) as exc:
         print(f"ERROR: {exc}"); return 2
 
 if __name__=="__main__": raise SystemExit(main())
