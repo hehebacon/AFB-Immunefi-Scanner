@@ -19,6 +19,14 @@ def _names(items) -> list[str]:
     return sorted(values)
 
 
+def _source_location(item) -> dict:
+    mapping=getattr(item, "source_mapping", None)
+    filename=getattr(mapping, "filename", None)
+    relative=getattr(filename, "relative", None) or getattr(filename, "absolute", None)
+    lines=list(getattr(mapping, "lines", []) or [])
+    return {"file": relative, "lines": lines}
+
+
 def run_logic_review(source: Path) -> dict:
     """Build entrypoint/state interaction maps and emit conservative logic-review leads."""
     if not source.is_dir():
@@ -70,6 +78,7 @@ def run_logic_review(source: Path) -> dict:
                 is_mutating=mutability not in {"view", "pure"}
                 row={
                     "name": function.canonical_name,
+                    "source_location": _source_location(function),
                     "visibility": visibility,
                     "state_mutability": mutability,
                     "is_external_entrypoint": is_entrypoint,
@@ -93,6 +102,7 @@ def run_logic_review(source: Path) -> dict:
                         "status": "needs_review",
                         "contract": contract.name,
                         "function": function.canonical_name,
+                        "source_location": _source_location(function),
                         "state_variables_written": writes,
                         "evidence": {"visibility": visibility, "modifiers": modifiers, "writes": writes},
                         "preconditions": ["Determine whether the function is intended to be permissionless.", "Trace require/revert checks and inherited/internal authorization."],
@@ -117,6 +127,7 @@ def run_logic_review(source: Path) -> dict:
                         "contract": contract.name,
                         "state_variable": variable_name,
                         "writer_functions": writer_names,
+                        "writer_locations": {row["name"]: row["source_location"] for row in function_rows if row["name"] in writer_names},
                         "reader_functions": reader_names,
                         "evidence": {"writers": writer_names, "readers": reader_names},
                         "preconditions": ["Define the invariant for this variable.", "Compare every writer's preconditions and paired state updates.", "Check whether callers can reach inconsistent orderings."],
