@@ -77,6 +77,18 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
     logic_output=workspace/"analysis"/"logic-review.json"
 
     if include_static_tools:
+        # Run semantic logic review independently: the Slither CLI executable and
+        # its Python API can be installed/configured separately.
+        try:
+            logic_result=run_logic_review(source)
+            logic_output.parent.mkdir(parents=True,exist_ok=True)
+            logic_output.write_text(json.dumps(logic_result,indent=2),encoding="utf-8")
+            logic_findings=logic_result.get("findings",[])
+            logic_result={k:v for k,v in logic_result.items() if k!="contracts"}
+            logic_result["output"]=str(logic_output)
+        except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
+            logic_result={"status":"failed","error":str(exc)}
+
         if shutil.which("aderyn"):
             try:
                 aderyn_output=static_dir/"aderyn.json"
@@ -100,18 +112,10 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
                     "stderr":raw_result.get("stderr",""),
                     "note":"A non-zero exit code may still accompany a valid JSON report. Inspect stderr and report status."
                 }
-                logic_result=run_logic_review(source)
-                logic_output.parent.mkdir(parents=True,exist_ok=True)
-                logic_output.write_text(json.dumps(logic_result,indent=2),encoding="utf-8")
-                logic_findings=logic_result.get("findings",[])
-                logic_result={k:v for k,v in logic_result.items() if k!="contracts"}
-                logic_result["output"]=str(logic_output)
             except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
                 slither_result={"status":"failed","error":str(exc)}
-                logic_result={"status":"not_run","reason":"Slither compilation/analysis did not complete."}
         else:
-            slither_result={"status":"not_installed","note":"Install Slither to enable static and semantic logic analysis."}
-            logic_result={"status":"not_run","reason":"The semantic engine uses Slither's Python API."}
+            slither_result={"status":"not_installed","note":"Install the Slither CLI to enable standard detector analysis."}
 
     findings=heuristic+slither_findings+logic_findings
     return {
