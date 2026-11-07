@@ -36,7 +36,7 @@ class LogicReviewTests(unittest.TestCase):
             name="Demo"
             functions_declared=[
                 Function("deposit","external",["totalBalance"]),
-                Function("withdraw","external",["totalBalance"],["totalBalance"]),
+                Function("withdraw","external",["totalBalance"],["totalBalance"],["onlyOwner"]),
             ]
 
         class FakeSlither:
@@ -51,6 +51,7 @@ class LogicReviewTests(unittest.TestCase):
         self.assertGreaterEqual(result["findings_count"],1)
         self.assertTrue(all(x["status"]=="needs_review" for x in result["findings"]))
         self.assertTrue(any(x["rule_id"]=="LOGIC002" for x in result["findings"]))
+        self.assertTrue(any(x["rule_id"]=="LOGIC003" for x in result["findings"]))
 
 
 if __name__=="__main__":
