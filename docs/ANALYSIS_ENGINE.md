@@ -56,3 +56,23 @@ The intake downloader now retains Solidity files plus selected build metadata (f
 ## Limitations
 
 Static analysis cannot guarantee discovery of every bug or a 100% true-positive rate. Slither's parser/build can fail when compiler versions, dependencies, submodules or project configuration are missing. A zero-finding result means only that enabled checks did not emit leads; it does not prove the protocol is secure.
+
+
+## SSV Network local validation workflow
+
+A manual GitHub Actions workflow is available at `.github/workflows/ssv-static-analysis.yml`.
+It checks out the public `ssvlabs/ssv-network` source at a selected git ref, installs dependencies, compiles locally, runs Slither, runs the AFB Slither-Python semantic map, and optionally invokes the official Aderyn CI action. It does not contact deployed contracts, submit transactions, or run tests against mainnet/public testnets.
+
+Run it from GitHub Actions → **SSV Network local static analysis** → **Run workflow**. The reports are uploaded as the `ssv-network-static-analysis` artifact.
+
+The semantic map now includes:
+- Function-to-function internal call references and per-function CFG node/IR summaries.
+- Shared state readers/writers and modifier asymmetry review leads.
+- Heuristic accounting/lifecycle invariant candidates for state variables whose names and dataflow suggest balances, fees, rewards, staking, validator/cluster lifecycle, counts, or indexes.
+
+Important capability boundary:
+- CFG/IR extraction is structural analysis, not path-sensitive symbolic execution.
+- Invariant candidates are hypotheses requiring protocol specifications and a reviewed oracle; they are not proven invariants.
+- This module does not execute differential tests or stateful fuzzing. Those require a project-specific test harness.
+- SSV source contains project-authored Echidna accounting and lifecycle harnesses. These are useful independent test assets, but this workflow does not claim to have executed Echidna unless a separate fuzz job records its run and results.
+- A successful unit-test workflow for AFB does not mean Slither/Aderyn has successfully analyzed SSV. Only the manual SSV workflow artifact can establish that.
