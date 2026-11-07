@@ -62,18 +62,23 @@ jobs:
           slither --version
 
       - name: Run Slither on local SSV source
+        id: slither
+        continue-on-error: true
         working-directory: ssv-network
         run: |
           mkdir -p ../reports
-          slither . --hardhat-ignore-compile --solc-remaps @openzeppelin=node_modules/@openzeppelin --filter-paths "contracts/test/" --exclude-informational --exclude-dependencies --json ../reports/slither.json
+          slither . --compile-force-framework hardhat --hardhat-ignore-compile --solc-remaps @openzeppelin=node_modules/@openzeppelin --filter-paths "contracts/test/" --exclude-informational --exclude-dependencies --json ../reports/slither.json
 
       - name: Run AFB semantic state and CFG review
+        id: afb
+        if: always()
         run: |
           mkdir -p reports
           python -c "import json; from pathlib import Path; from afb_immunefi.logic_analysis import run_logic_review; p=run_logic_review(Path('ssv-network')); Path('reports/afb-logic-review.json').write_text(json.dumps(p, indent=2)); print(json.dumps({k:p.get(k) for k in ('status','contracts_analyzed','entrypoints_analyzed','cfg_nodes_analyzed','invariant_candidates_count','findings_count','analysis_capabilities')}, indent=2)); raise SystemExit(0 if p.get('status') == 'completed' else 2)"
 
       - name: Run Aderyn CI analysis
-        if: inputs.run_aderyn
+        id: aderyn
+        if: always() && inputs.run_aderyn
         uses: Cyfrin/aderyn-ci@v0
         with:
           warn-on: any
@@ -88,3 +93,20 @@ jobs:
             ssv-network/report.md
             ssv-network/slither.db.json
           if-no-files-found: warn
+
+      - name: Enforce analysis results
+        if: always()
+        env:
+          SLITHER_OUTCOME: ${{ steps.slither.outcome }}
+          AFB_OUTCOME: ${{ steps.afb.outcome }}
+          ADERYN_OUTCOME: ${{ steps.aderyn.outcome }}
+          RUN_ADERYN: ${{ inputs.run_aderyn }}
+        run: |
+          echo "Slither: ${SLITHER_OUTCOME}"
+          echo "AFB: ${AFB_OUTCOME}"
+          echo "Aderyn: ${ADERYN_OUTCOME:-skipped}"
+          test "${SLITHER_OUTCOME}" = "success"
+          test "${AFB_OUTCOME}" = "success"
+          if [ "${RUN_ADERYN}" = "true" ]; then
+            test "${ADERYN_OUTCOME}" = "success"
+          fi
