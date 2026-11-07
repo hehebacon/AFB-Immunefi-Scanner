@@ -10,7 +10,7 @@ A local-first smart-contract analysis tool for authorized bug-bounty research. I
 - Bounded GitHub source snapshot that includes Solidity and selected build metadata (Foundry/Hardhat configs and package manifests); it does not install dependencies or execute repository scripts.
 - Local Solidity inventory and conservative source-text review leads.
 - Slither standard detector suite with normalized JSON findings.
-- Slither Python-API semantic logic review: external entrypoints, modifiers, state reads/writes, shared-state writers and cross-function state interaction maps.
+- Slither Python-API semantic logic review: external entrypoints, modifiers, state reads/writes, internal/high-level calls, shared-state writers and cross-function state interaction maps. This pass runs independently from the Slither CLI detector process when the Python API is available.
 - Optional Aderyn analysis with its native report preserved.
 - Human-confirmed scope/policy gate, JSON findings and Markdown review reports.
 - Unit tests for parsing, normalization and logic-review output.
