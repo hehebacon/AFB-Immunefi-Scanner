@@ -6,7 +6,7 @@ The unified `afb-immunefi analyze` command runs three complementary layers on a 
 
 1. Built-in source heuristics for quick review leads.
 2. Slither's standard detector suite, normalized from its JSON output.
-3. A Slither Python-API semantic pass that maps external entrypoints, state reads/writes, modifiers and high-level calls. It emits cross-function logic-review leads when multiple paths mutate shared state or when a state-changing entrypoint needs its authorization path reviewed.
+3. A Slither Python-API semantic pass that maps external entrypoints, state reads/writes, modifiers, internal calls and high-level calls. It emits cross-function logic-review leads when multiple paths mutate shared state, when writer paths have asymmetric modifier coverage, or when a state-changing entrypoint needs its authorization path reviewed. This pass runs independently of the Slither CLI detector process; a missing CLI binary does not suppress it if the Python API is installed.
 
 Aderyn is run as an additional independent analyzer when installed. Its native report is preserved.
 
@@ -27,8 +27,9 @@ Outputs:
 
 - `LOGIC001`: public/external state-changing entrypoint with storage writes and no Solidity modifier. This is only an authorization-path review prompt; inline checks or internal authorization may make the function safe.
 - `LOGIC002`: a state variable is written by multiple functions. Review every transition against the protocol's accounting, lifecycle and cross-function invariants.
+- `LOGIC003`: multiple functions write the same state variable but use asymmetric Solidity modifier sets, with at least one writer having no modifier. Review whether authorization and lifecycle preconditions are equivalent; inline/inherited checks may make the paths safe.
 
-These rules intentionally produce `needs_review` leads, not vulnerability verdicts. The output includes functions, shared state variables, reads/writes and modifier names so a reviewer can trace the relevant state machine. They are not a substitute for symbolic execution, fuzzing, invariant testing or protocol-specific reasoning.
+These rules intentionally produce `needs_review` leads, not vulnerability verdicts. The output includes functions, shared state variables, reads/writes, modifier names, internal calls and source locations so a reviewer can trace the relevant state machine. They are not a substitute for symbolic execution, fuzzing, invariant testing or protocol-specific reasoning.
 
 ## Source/build context
 
