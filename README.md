@@ -1,31 +1,35 @@
 # AFB Immunefi Scanner
 
-A scope-first, local-first smart-contract security research assistant for authorized Immunefi research.
+A local-first smart-contract analysis tool for authorized bug-bounty research. It is designed to **analyze code and identify reviewable bug candidates**, not to stop at public-information collection.
 
-**Safety:** this project gathers public program information and analyzes local source code. It does not probe live targets, send transactions, execute exploits against deployed protocols, connect wallets, or submit reports.
+**Safety boundary:** the tool collects public program/source material and analyzes local files. It does not probe live targets, send transactions, execute exploits against deployed protocols, connect wallets, or submit reports.
 
-## Implemented
-- One-URL Immunefi intake: identifies the program slug from an official URL.
-- Automatically fetches the program's Information page and linked Scope and Resources pages on Immunefi.
-- Finds a GitHub repository linked from Resources, downloads Solidity files only, paginates public Git history (default cap 1,000 commits; hard cap 5,000), crawls linked documentation on the same host (bounded to 40 pages and depth 2), classifies references, and downloads linked audit PDFs with text extraction plus optional OCR for image-only pages.
-- Saves source HTML/text, fetch timestamps, HTTP status, and SHA-256 hashes.
-- Extracts scope/impact/exclusion/testing-rule evidence, chain mentions, candidate contract addresses, and related external references.
-- Local Solidity inventory and conservative source-review heuristics.
-- Human-confirmed policy gate, local Slither and Aderyn adapters, toolchain checks, JSON findings, Markdown reports, and unit tests.
+## Analysis capabilities
 
-Automated extraction is evidence collection, not a final scope decision. Every asset and impact remains unverified until checked against current program rules.
+- One-URL Immunefi intake for Information, Scope and Resources.
+- Bounded GitHub source snapshot that includes Solidity and selected build metadata (Foundry/Hardhat configs and package manifests); it does not install dependencies or execute repository scripts.
+- Local Solidity inventory and conservative source-text review leads.
+- Slither standard detector suite with normalized JSON findings.
+- Slither Python-API semantic logic review: external entrypoints, modifiers, state reads/writes, shared-state writers and cross-function state interaction maps.
+- Optional Aderyn analysis with its native report preserved.
+- Human-confirmed scope/policy gate, JSON findings and Markdown review reports.
+- Unit tests for parsing, normalization and logic-review output.
+
+Semantic logic findings are **review leads**, not confirmed vulnerabilities. Real business-logic verification still requires protocol-specific invariants and deterministic local tests.
 
 ## Install
+
 Python 3.11+:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
-Without installation, use `python run.py` instead of `afb-immunefi`.
 
-## One-URL workflow
-Paste one official Immunefi Information URL:
+Install Slither in the same Python environment as AFB (for example, using the official Slither installation instructions). Install the repository's required Solidity compiler version and dependencies only in an isolated development environment. Aderyn is optional.
+
+## One-URL intake
+
 ```bash
 afb-immunefi program-url \
   --url "https://immunefi.com/bug-bounty/ssvnetwork/information/" \
@@ -33,66 +37,73 @@ afb-immunefi program-url \
   --max-commits 1000
 ```
 
-The command initializes the workspace if needed, then fetches the same program's Information, Scope and Resources tabs. If Resources links a public GitHub repository, it downloads only `.sol` files (size/file-count capped), records recent public commit metadata, classifies documentation/explorer/audit references, and downloads linked PDF documents within strict size limits. PDF text is extracted when possible. Repository code is never executed.
+The command retrieves the official program tabs and discovers the source repository linked from Resources. It downloads a bounded snapshot of Solidity files and selected build metadata, public commit metadata, linked audit PDFs and bounded documentation pages. It does not run analysis before the policy gate is confirmed.
 
-Generated files under `workspace/program/`:
-- `source-page-information.html/.txt`
-- `source-page-scope.html/.txt`
-- `source-page-resources.html/.txt`
-- `intake.json`: fetched pages, timestamps, hashes, links
-- `scope-draft.json`: candidate assets and extracted evidence
-- `source-discovery.json`: linked repository and download status
-- `references.json`: classified public references
-- `github-history-status.json`: public commit-history collection status
-- `audit-pdf-index.json`: downloaded PDF audit index, text extraction and OCR status
-- `documentation-crawl-index.json`: bounded same-host documentation crawl index
-- `../reconnaissance/history/`: public commit metadata
-- `../reconnaissance/references/audits/`: downloaded audit PDFs and extracted text
-- `../reconnaissance/contracts.json`: local Solidity inventory when source was found
-- `../analysis/review-notes/source-leads.json`: potential source-review leads, with scope still marked unverified
-- `scope-report.md`: human-readable scope-style report
+## Run the actual analyzers
 
-If a tab is unavailable, its file will not be created. Check the returned output list.
+First review `workspace/program/scope-report.md`, verify the current official scope and testing rules, and complete `workspace/program/policy.yaml`. Then run:
 
-## Local source analysis
-After reviewing the scope report and completing `workspace/program/policy.yaml` from the official rules:
 ```bash
 afb-immunefi policy-check --workspace ./workspace
 afb-immunefi tools
-afb-immunefi inventory --source ./contracts --output ./workspace/reconnaissance/contracts.json
-afb-immunefi analyze --source ./contracts --output ./workspace/findings/analysis.json --workspace ./workspace
-afb-immunefi slither --source ./contracts --output ./workspace/analysis/static/slither.json --workspace ./workspace
-afb-immunefi report --findings ./workspace/findings/analysis.json --output ./workspace/reports/review.md
+afb-immunefi analyze \
+  --source ./workspace/reconnaissance/sources/ssvlabs-ssv-network \
+  --output ./workspace/findings/ssv-analysis.json \
+  --workspace ./workspace
+```
+
+The unified analysis produces:
+- `workspace/analysis/static/slither.json`: Slither detector output.
+- `workspace/analysis/static/aderyn.json`: Aderyn output, if installed.
+- `workspace/analysis/logic-review.json`: semantic entrypoint/state-interaction map and logic-review leads.
+- `workspace/findings/ssv-analysis.json`: combined heuristic, Slither and logic-review findings.
+
+To run Slither alone:
+```bash
+afb-immunefi slither \
+  --source ./workspace/reconnaissance/sources/ssvlabs-ssv-network \
+  --output ./workspace/analysis/static/slither.json \
+  --workspace ./workspace
+```
+
+To run tests:
+```bash
 python -m unittest discover -s tests -v
 ```
 
+## Logic analysis: what it looks for
+
+- State-changing public/external entrypoints and their Solidity modifiers.
+- State variables read and written by each function.
+- Shared state variables with multiple writer paths, which can hide inconsistent accounting or lifecycle transitions.
+- Cross-function relationships to help build state-machine and invariant tests.
+
+Current logic rules are conservative review prompts. Inline authorization, inherited checks, internal call paths and protocol-specific invariants require deeper validation. A finding is never marked confirmed automatically.
+
+## SSV Network-specific review constraints
+
+For SSV Network, follow the current Immunefi Scope and program rules. The program requires a functional PoC and states that testing must use local forks rather than mainnet or public-testnet deployed code. Previously disclosed audit findings and known issues must be checked before treating a candidate as novel. The scanner does not automate PoC execution against live infrastructure.
 
 ## Deployed-source verification (read-only)
-Create `workspace/deployment-targets.json` with chain IDs and exact contract addresses copied from the official Scope page:
 
-```json
-{
-  "targets": [
-    {"label": "Vault", "chain_id": "1", "address": "0x0000000000000000000000000000000000000000"}
-  ]
-}
-```
-Replace the example address before running:
-
+After scope review, create `workspace/deployment-targets.json` using exact chain IDs and full addresses copied from the official Scope page. Then use:
 ```bash
-afb-immunefi verify-deployments --targets ./workspace/deployment-targets.json --output ./workspace/verification/deployed-source.json --workspace ./workspace \
-  --source ./workspace/reconnaissance/sources/OWNER-REPO
+afb-immunefi verify-deployments \
+  --targets ./workspace/deployment-targets.json \
+  --output ./workspace/verification/deployed-source.json \
+  --workspace ./workspace \
+  --source ./workspace/reconnaissance/sources/ssvlabs-ssv-network
 ```
-The `--source` option compares every returned verified Solidity source file with the downloaded local file using SHA-256 after newline normalisation. A complete exact comparison plus Sourcify `exact_match` yields `exact_deployment_and_source_tree_match`; missing or differing files remain unresolved. This queries Sourcify public verification metadata only. It does not call contract methods, send transactions, or prove Immunefi scope. An unavailable Sourcify record is **unknown**, not evidence of an unverified or malicious contract.
+
+Sourcify metadata and local source comparison are correspondence evidence only; they do not prove scope or exploitability.
 
 ## Important limitations
-- Program page parsing can miss content rendered only by JavaScript.
-- Candidate addresses are not automatically treated as in-scope assets.
-- Documentation crawling is intentionally bounded (40 pages, depth 2, same host, 2 MB/page); JavaScript-rendered content, linked external hosts and deeper pages may be missed.
-- Git history is paginated beyond the former 100-commit ceiling (default 1,000, hard cap 5,000); this is still not an unlimited forensic archive.
-- OCR is optional and requires `tesseract-ocr` plus `poppler-utils`; No extra Python package is required; install the system binaries with `sudo apt install tesseract-ocr poppler-utils`. OCR quality depends on scan quality/language packs and is capped at 120 pages per PDF.
-- GitHub source downloads remain limited to Solidity files and do not establish deployed-source correspondence by themselves. Use the optional Sourcify workflow for address/chain-specific deployed-bytecode verification and local source-file comparison. Exact deployed match plus exact local source-tree match is strong correspondence evidence, but still does not establish Immunefi scope; proxy implementations may need separate targets.
-- No RPC, contract probing, live testing, exploit execution, wallet integration, or automatic submission.
-- Slither and heuristic outputs are leads requiring independent validation, not confirmed vulnerabilities.
+
+- JavaScript-rendered program content may be missed.
+- Source snapshot limits can omit large files, build files outside the allowlist, submodules, dependencies and generated sources.
+- Slither may fail if the compiler version or dependencies are missing; the tool must report this rather than treating it as a clean scan.
+- Aderyn is optional and may produce a different set of findings.
+- Static analysis cannot prove absence of vulnerabilities. Zero findings is not a security guarantee.
+- All machine-generated findings require manual triage, local reproduction, scope/known-issue checks and human review.
 
 See `docs/ANALYSIS_ENGINE.md`, `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, and `docs/REVIEW_CHECKLIST.md`.
