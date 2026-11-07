@@ -12,6 +12,9 @@ license = { text = "MIT" }
 authors = [{ name = "AFB Immunefi Scanner contributors" }]
 dependencies = ["PyYAML>=6.0.1", "pypdf>=5.0.0"]
 
+[project.optional-dependencies]
+analysis = ["slither-analyzer>=0.11.3"]
+
 [project.scripts]
 afb-immunefi = "afb_immunefi.cli:main"
 
