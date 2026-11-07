@@ -67,6 +67,7 @@ def run_logic_review(source: Path) -> dict:
                         external_calls.append(f"{call[0].name}.{call[1].name}")
                     except (AttributeError, IndexError, TypeError):
                         external_calls.append(str(call))
+                internal_calls=_names(getattr(function, "internal_calls", []))
                 for variable in getattr(function, "state_variables_read", []) or []:
                     readers[getattr(variable, "canonical_name", None) or variable.name].add(function.canonical_name)
                     state_objects[getattr(variable, "canonical_name", None) or variable.name]=variable
@@ -86,6 +87,7 @@ def run_logic_review(source: Path) -> dict:
                     "writes": writes,
                     "modifiers": modifiers,
                     "high_level_calls": sorted(set(external_calls)),
+                    "internal_calls": internal_calls,
                 }
                 function_rows.append(row)
 
@@ -136,6 +138,31 @@ def run_logic_review(source: Path) -> dict:
                     if variable is not None:
                         finding["state_variable_visibility"]=getattr(variable, "visibility", None)
                     findings.append(finding)
+
+            # Different modifier sets on writers of the same state variable
+            # can expose inconsistent authorization paths. This is only a review lead:
+            # inline checks and inherited/internal guards are not fully inferred here.
+            for variable_name, writer_set in sorted(writers.items()):
+                writer_rows=[row for row in function_rows if row["name"] in writer_set]
+                modifier_sets={tuple(row["modifiers"]) for row in writer_rows}
+                if len(writer_rows) >= 2 and len(modifier_sets) > 1 and any(not row["modifiers"] for row in writer_rows):
+                    finding_index+=1
+                    findings.append({
+                        "id": f"LOGIC-{finding_index:04d}",
+                        "rule_id": "LOGIC003",
+                        "category": "cross_function_logic",
+                        "title": "Shared-state writers have asymmetric modifier coverage",
+                        "description": "Functions writing the same state variable use different Solidity modifier sets, and at least one writer has no modifier. Review whether all state transitions enforce equivalent authorization and lifecycle preconditions; inline and inherited checks may still make the paths safe.",
+                        "severity": "undetermined",
+                        "confidence": "low",
+                        "status": "needs_review",
+                        "contract": contract.name,
+                        "state_variable": variable_name,
+                        "writer_functions": sorted(writer_set),
+                        "modifier_sets": {row["name"]: row["modifiers"] for row in writer_rows},
+                        "source_locations": {row["name"]: row["source_location"] for row in writer_rows},
+                        "requires_manual_validation": True,
+                    })
 
             contracts.append({
                 "name": contract.name,
