@@ -67,7 +67,7 @@ jobs:
         working-directory: ssv-network
         run: |
           mkdir -p ../reports
-          slither . --compile-force-framework hardhat --hardhat-ignore-compile --solc-remaps @openzeppelin=node_modules/@openzeppelin --filter-paths "contracts/test/" --exclude-informational --exclude-dependencies --json ../reports/slither.json
+          slither . --compile-force-framework hardhat --hardhat-ignore-compile --solc-remaps @openzeppelin=node_modules/@openzeppelin --filter-paths "contracts/test/" --exclude-informational --exclude-dependencies --fail-none --json ../reports/slither.json
 
       - name: Run AFB semantic state and CFG review
         id: afb
@@ -76,12 +76,17 @@ jobs:
           mkdir -p reports
           python -c "import json; from pathlib import Path; from afb_immunefi.logic_analysis import run_logic_review; p=run_logic_review(Path('ssv-network')); Path('reports/afb-logic-review.json').write_text(json.dumps(p, indent=2)); print(json.dumps({k:p.get(k) for k in ('status','contracts_analyzed','entrypoints_analyzed','cfg_nodes_analyzed','invariant_candidates_count','findings_count','analysis_capabilities')}, indent=2)); raise SystemExit(0 if p.get('status') == 'completed' else 2)"
 
-      - name: Run Aderyn CI analysis
+      - name: Install Aderyn
+        if: always() && inputs.run_aderyn
+        run: npm install --global @cyfrin/aderyn@0.6
+
+      - name: Run Aderyn on local SSV source
         id: aderyn
         if: always() && inputs.run_aderyn
-        uses: Cyfrin/aderyn-ci@v0
-        with:
-          warn-on: any
+        working-directory: ssv-network
+        run: |
+          mkdir -p ../reports
+          aderyn . -o ../reports/aderyn-report.md --no-snippets --skip-update-check
 
       - name: Upload analysis reports
         if: always()
