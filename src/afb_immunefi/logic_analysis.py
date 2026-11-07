@@ -51,6 +51,7 @@ def run_logic_review(source: Path) -> dict:
 
         for contract in project.contracts:
             function_rows=[]
+            cfg_rows=[]
             writers=defaultdict(set)
             readers=defaultdict(set)
             state_objects={}
@@ -68,6 +69,18 @@ def run_logic_review(source: Path) -> dict:
                     except (AttributeError, IndexError, TypeError):
                         external_calls.append(str(call))
                 internal_calls=_names(getattr(function, "internal_calls", []))
+                for node in getattr(function, "nodes", []) or []:
+                    node_id=getattr(node, "node_id", None)
+                    irs=[type(ir).__name__ for ir in (getattr(node, "irs", []) or [])]
+                    successors=[getattr(child, "node_id", None) for child in (getattr(node, "sons", []) or [])]
+                    cfg_rows.append({
+                        "function": function.canonical_name,
+                        "node_id": node_id,
+                        "node_type": str(getattr(node, "type", "unknown")),
+                        "expression": str(getattr(node, "expression", "") or "")[:500],
+                        "ir_operations": irs,
+                        "successors": [x for x in successors if x is not None],
+                    })
                 for variable in getattr(function, "state_variables_read", []) or []:
                     readers[getattr(variable, "canonical_name", None) or variable.name].add(function.canonical_name)
                     state_objects[getattr(variable, "canonical_name", None) or variable.name]=variable
@@ -164,9 +177,34 @@ def run_logic_review(source: Path) -> dict:
                         "requires_manual_validation": True,
                     })
 
+            invariant_candidates=[]
+            for variable_name in sorted(set(writers) | set(readers)):
+                lowered=variable_name.lower()
+                tokens=("balance","deposit","withdraw","fee","reward","earning","supply","stake","nonce","validator","cluster","index","count","total")
+                if any(token in lowered for token in tokens):
+                    writer_names=sorted(writers.get(variable_name,set()))
+                    reader_names=sorted(readers.get(variable_name,set()))
+                    if writer_names:
+                        invariant_candidates.append({
+                            "variable": variable_name,
+                            "candidate_family": "accounting_or_lifecycle",
+                            "writer_functions": writer_names,
+                            "reader_functions": reader_names,
+                            "suggested_properties": [
+                                "Every state transition preserves the protocol-specific accounting equation.",
+                                "A completed withdrawal or claim cannot exceed the caller's accrued/recorded entitlement.",
+                                "Lifecycle transitions preserve valid active/liquidated/migrated state relationships."
+                            ],
+                            "evidence_level": "name_and_dataflow_heuristic",
+                            "requires_protocol_specification": True,
+                            "requires_human_authored_or_reviewed_oracle": True
+                        })
+
             contracts.append({
                 "name": contract.name,
                 "functions": function_rows,
+                "cfg_nodes": [row for row in cfg_rows if any(f["name"]==row["function"] for f in function_rows)],
+                "invariant_candidates": invariant_candidates,
                 "state_interactions": [
                     {"variable": name, "readers": sorted(readers.get(name, set())), "writers": sorted(writers.get(name, set()))}
                     for name in sorted(set(readers) | set(writers))
@@ -179,11 +217,24 @@ def run_logic_review(source: Path) -> dict:
             "contracts_analyzed": len(contracts),
             "entrypoints_analyzed": sum(1 for c in contracts for f in c["functions"] if f["is_external_entrypoint"]),
             "findings_count": len(findings),
+            "cfg_nodes_analyzed": len(cfg_rows),
+            "invariant_candidates_count": sum(len(c["invariant_candidates"]) for c in contracts),
+            "analysis_capabilities": {
+                "cross_function_call_and_state_map": "implemented",
+                "cfg_and_ir_summary": "implemented",
+                "invariant_candidate_inference": "heuristic_review_only",
+                "path_sensitive_symbolic_execution": "not_implemented",
+                "stateful_fuzz_execution": "not_implemented_by_this_module",
+                "differential_execution": "not_implemented_by_this_module"
+            },
             "contracts": contracts,
             "findings": findings,
             "limitations": [
                 "These are semantic review leads, not confirmed vulnerabilities.",
                 "No path feasibility, economic impact, or exploitability is established.",
+                "CFG/IR summaries are structural evidence, not path-sensitive symbolic execution.",
+                "Invariant candidates are inferred from variable names and dataflow; they are not proven protocol invariants.",
+                "Stateful fuzzing and differential execution require a project-specific harness and are not performed by this module.",
                 "Inline authorization and cross-contract invariants require manual call-path review and local tests.",
             ],
         }
