@@ -217,7 +217,7 @@ def run_logic_review(source: Path) -> dict:
             "contracts_analyzed": len(contracts),
             "entrypoints_analyzed": sum(1 for c in contracts for f in c["functions"] if f["is_external_entrypoint"]),
             "findings_count": len(findings),
-            "cfg_nodes_analyzed": len(cfg_rows),
+            "cfg_nodes_analyzed": sum(len(contract["cfg_nodes"]) for contract in contracts),
             "invariant_candidates_count": sum(len(c["invariant_candidates"]) for c in contracts),
             "analysis_capabilities": {
                 "cross_function_call_and_state_map": "implemented",
