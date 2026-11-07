@@ -52,6 +52,8 @@ class LogicReviewTests(unittest.TestCase):
         self.assertTrue(all(x["status"]=="needs_review" for x in result["findings"]))
         self.assertTrue(any(x["rule_id"]=="LOGIC002" for x in result["findings"]))
         self.assertTrue(any(x["rule_id"]=="LOGIC003" for x in result["findings"]))
+        self.assertGreaterEqual(result["invariant_candidates_count"],1)
+        self.assertEqual(result["analysis_capabilities"]["path_sensitive_symbolic_execution"],"not_implemented")
 
 
 if __name__=="__main__":
