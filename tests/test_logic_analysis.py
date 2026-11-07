@@ -1,5 +1,7 @@
 import tempfile
 import unittest
+import sys
+import types
 from pathlib import Path
 from unittest.mock import patch
 from afb_immunefi.logic_analysis import run_logic_review
@@ -42,7 +44,8 @@ class LogicReviewTests(unittest.TestCase):
                 self.contracts=[Contract()]
 
         with tempfile.TemporaryDirectory() as tmp:
-            with patch("slither.Slither",FakeSlither,create=True):
+            fake_module=types.SimpleNamespace(Slither=FakeSlither)
+            with patch.dict(sys.modules, {"slither": fake_module}):
                 result=run_logic_review(Path(tmp))
         self.assertEqual(result["status"],"completed")
         self.assertGreaterEqual(result["findings_count"],1)
