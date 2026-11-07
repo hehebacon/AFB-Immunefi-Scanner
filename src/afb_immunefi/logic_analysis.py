@@ -44,7 +44,7 @@ def run_logic_review(source: Path) -> dict:
         }
 
     try:
-        project = Slither(str(source.resolve()))
+        project = Slither(str(source.resolve()), compile_force_framework="hardhat")
         contracts=[]
         findings=[]
         finding_index=0
