@@ -1,4 +1,4 @@
-"""Unified local analysis: heuristic leads plus optional Slither JSON findings."""
+"""Unified local analysis: heuristics, Slither detectors and semantic logic review."""
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -7,10 +7,13 @@ import subprocess
 from .inventory import inventory_sources
 from .detectors import scan_sources
 from .toolchain import run_slither_local, run_aderyn_local
+from .logic_analysis import run_logic_review
+
 
 def _severity(value: str | None) -> str:
     normalized=(value or "").strip().lower()
     return {"informational":"info","info":"info","low":"low","medium":"medium","high":"high","critical":"critical"}.get(normalized,"undetermined")
+
 
 def _slither_findings(path: Path, source_root: Path) -> list[dict]:
     if not path.is_file():
@@ -57,6 +60,7 @@ def _slither_findings(path: Path, source_root: Path) -> list[dict]:
             })
     return findings
 
+
 def run_analysis(source: Path, workspace: Path, include_static_tools: bool = True) -> dict:
     if not source.is_dir():
         raise NotADirectoryError(f"Source directory does not exist: {source}")
@@ -64,10 +68,14 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
     heuristic=scan_sources(source)
     slither_result={"status":"not_requested"}
     aderyn_result={"status":"not_requested"}
+    logic_result={"status":"not_requested"}
     slither_findings=[]
+    logic_findings=[]
     static_dir=workspace/"analysis"/"static"
     static_dir.mkdir(parents=True,exist_ok=True)
     slither_output=static_dir/"slither.json"
+    logic_output=workspace/"analysis"/"logic-review.json"
+
     if include_static_tools:
         if shutil.which("aderyn"):
             try:
@@ -78,36 +86,49 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
                 aderyn_result={"status":"failed","error":str(exc)}
         else:
             aderyn_result={"status":"not_installed","note":"Install Aderyn to enable this analysis layer."}
+
         if shutil.which("slither"):
             try:
-                slither_result=run_slither_local(source,slither_output)
+                raw_result=run_slither_local(source,slither_output)
                 slither_findings=_slither_findings(slither_output,source)
                 slither_result={
                     "status":"completed" if slither_output.is_file() else "completed_without_json",
-                    "returncode":slither_result.get("returncode"),
+                    "returncode":raw_result.get("returncode"),
                     "output":str(slither_output),
                     "normalized_findings":len(slither_findings),
-                    "note":"Non-zero exit codes may occur when detectors report findings; inspect the JSON and stderr."
+                    "stdout":raw_result.get("stdout",""),
+                    "stderr":raw_result.get("stderr",""),
+                    "note":"A non-zero exit code may still accompany a valid JSON report. Inspect stderr and report status."
                 }
+                logic_result=run_logic_review(source)
+                logic_output.parent.mkdir(parents=True,exist_ok=True)
+                logic_output.write_text(json.dumps(logic_result,indent=2),encoding="utf-8")
+                logic_findings=logic_result.get("findings",[])
+                logic_result={k:v for k,v in logic_result.items() if k!="contracts"}
+                logic_result["output"]=str(logic_output)
             except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
                 slither_result={"status":"failed","error":str(exc)}
+                logic_result={"status":"not_run","reason":"Slither compilation/analysis did not complete."}
         else:
-            slither_result={"status":"not_installed","note":"Install Slither to enable this analysis layer."}
-    findings=heuristic+slither_findings
+            slither_result={"status":"not_installed","note":"Install Slither to enable static and semantic logic analysis."}
+            logic_result={"status":"not_run","reason":"The semantic engine uses Slither's Python API."}
+
+    findings=heuristic+slither_findings+logic_findings
     return {
-        "schema_version":1,
-        "analysis_mode":"local_source_only",
+        "schema_version":2,
+        "analysis_mode":"local_source_analysis",
         "source_root":str(source.resolve()),
         "coverage":{
             "solidity_files":len(inventory),
             "heuristic_leads":len(heuristic),
             "slither_findings":len(slither_findings),
-            "tools":{"heuristics":"completed","slither":slither_result,"aderyn":aderyn_result},
+            "logic_review_leads":len(logic_findings),
+            "tools":{"heuristics":"completed","slither":slither_result,"aderyn":aderyn_result,"logic_review":logic_result},
         },
         "findings":findings,
         "validation_policy":{
             "confirmed_vulnerabilities":0,
             "all_results_are_unverified":True,
-            "requirements":["reproduce with a local test","confirm root cause and reachable preconditions","check deployed-source correspondence","check current program scope and exclusions","justify impact using program definitions","human review before external reporting"]
+            "requirements":["reproduce with a local unit/fork test","confirm root cause and reachable preconditions","check deployed-source correspondence","check current program scope and exclusions","justify impact using program definitions","human review before external reporting"]
         }
     }
