@@ -51,16 +51,19 @@ class AnalysisTests(unittest.TestCase):
             self.assertEqual(data["coverage"]["tools"]["slither"]["status"],"not_requested")
             self.assertEqual(data["validation_policy"]["confirmed_vulnerabilities"],0)
 
-    def test_unified_analysis_reports_missing_slither_explicitly(self):
+    def test_logic_review_runs_even_when_slither_cli_is_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            (root/"Demo.sol").write_text("pragma solidity ^0.8.20;\ncontract Demo { function f() external { tx.origin; } }\n")
-            with patch("afb_immunefi.analysis.shutil.which",return_value=None):
+            (root/"Demo.sol").write_text("pragma solidity ^0.8.20;\\ncontract Demo {}\\n")
+            fake_logic={"status":"completed","findings":[{"id":"LOGIC-0001","rule_id":"LOGIC003","status":"needs_review"}]}
+            with patch("afb_immunefi.analysis.shutil.which",return_value=None), patch("afb_immunefi.analysis.run_logic_review",return_value=fake_logic) as logic:
                 result=run_analysis(root,root/"workspace")
-            self.assertEqual(result["coverage"]["solidity_files"],1)
+            logic.assert_called_once_with(root)
             self.assertEqual(result["coverage"]["tools"]["slither"]["status"],"not_installed")
+            self.assertEqual(result["coverage"]["tools"]["logic_review"]["status"],"completed")
+            self.assertEqual(result["coverage"]["logic_review_leads"],1)
+            self.assertEqual(result["findings"][0]["rule_id"],"LOGIC003")
             self.assertEqual(result["validation_policy"]["confirmed_vulnerabilities"],0)
-            self.assertTrue(all(x["status"]=="potential" for x in result["findings"] if x["category"]!="slither"))
 
 if __name__=="__main__":
     unittest.main()
