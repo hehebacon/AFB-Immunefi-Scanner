@@ -40,7 +40,7 @@ class LogicReviewTests(unittest.TestCase):
             ]
 
         class FakeSlither:
-            def __init__(self,_path):
+            def __init__(self,_path,**_kwargs):
                 self.contracts=[Contract()]
 
         with tempfile.TemporaryDirectory() as tmp:
