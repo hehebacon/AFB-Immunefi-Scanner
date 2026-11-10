@@ -112,12 +112,28 @@ def explore_contract_paths(contract_row, *, max_paths=30, max_depth=50, sample_p
         incoming = {node_id: 0 for node_id in graph}
         for node in graph.values():
             for child in node.get("successors", []):
-                if child in incoming: incoming[child] += 1
+                if child in incoming:
+                    incoming[child] += 1
         entries = [node_id for node_id, degree in incoming.items() if degree == 0]
         if not entries:
             entries = [next(iter(graph))]
         stack = [(entry, [entry], []) for entry in entries]
         seen_paths = 0
+
+        def record(status, nodes, constraints, terminal, bounded):
+            nonlocal seen_paths
+            totals[status] += 1
+            seen_paths += 1
+            if len(results) < sample_paths:
+                results.append({
+                    "function": name,
+                    "nodes": nodes,
+                    "constraints": [{"expression": expr, "truth": truth} for expr, truth in constraints],
+                    "feasibility": status,
+                    "terminal": terminal,
+                    "bounded": bounded,
+                })
+
         while stack:
             current, path, constraints = stack.pop()
             if seen_paths >= max_paths:
@@ -126,19 +142,9 @@ def explore_contract_paths(contract_row, *, max_paths=30, max_depth=50, sample_p
             node = graph.get(current)
             if node is None:
                 continue
-            successors = [x for x in node.get("successors", []) if x in graph]
+            successors = [child for child in node.get("successors", []) if child in graph]
             if not successors or len(path) >= max_depth:
-                status = _path_status(constraints, z3)
-                totals[status] += 1
-                seen_paths += 1
-                if len(results) < sample_paths:
-                    if len(results) < sample_paths:
-                        results.append({
-                    "function": name, "nodes": path, "constraints": [
-                        {"expression": expr, "truth": truth} for expr, truth in constraints
-                    ], "feasibility": status,
-                    "terminal": current, "bounded": len(path) >= max_depth,
-                })
+                record(_path_status(constraints, z3), path, constraints, current, len(path) >= max_depth)
                 continue
             true_id = node.get("true_successor")
             false_id = node.get("false_successor")
@@ -146,19 +152,13 @@ def explore_contract_paths(contract_row, *, max_paths=30, max_depth=50, sample_p
             for child in reversed(successors):
                 next_constraints = list(constraints)
                 if len(successors) == 2 and expression and (true_id is not None or false_id is not None):
-                    if child == true_id: next_constraints.append((expression, True))
-                    elif child == false_id: next_constraints.append((expression, False))
+                    if child == true_id:
+                        next_constraints.append((expression, True))
+                    elif child == false_id:
+                        next_constraints.append((expression, False))
                 next_path = path + [child]
                 if child in path:
-                    # A loop is represented as a bounded terminal path, not expanded forever.
-                    status = _path_status(next_constraints, z3)
-                    totals[status] += 1
-                    seen_paths += 1
-                    results.append({
-                        "function": name, "nodes": next_path,
-                        "constraints": [{"expression": e, "truth": t} for e, t in next_constraints],
-                        "feasibility": status, "terminal": child, "bounded": True,
-                    })
+                    record(_path_status(next_constraints, z3), next_path, next_constraints, child, True)
                 else:
                     stack.append((child, next_path, next_constraints))
     return {
@@ -167,6 +167,7 @@ def explore_contract_paths(contract_row, *, max_paths=30, max_depth=50, sample_p
         "contracts": 1,
         "paths": results,
         "summary": totals,
+        "limits": {"max_paths_per_function": max_paths, "max_depth": max_depth, "sample_paths_per_contract": sample_paths},
         "limitations": [
             "Only simple integer/boolean branch expressions are translated.",
             "This pass checks path-condition consistency; it does not symbolically execute EVM state or prove a vulnerability.",
@@ -174,7 +175,6 @@ def explore_contract_paths(contract_row, *, max_paths=30, max_depth=50, sample_p
             "Unsupported expressions are unknown, never assumed feasible or safe.",
         ],
     }
-
 
 def infer_structural_invariants(contract_row):
     """Infer invariant *hypotheses* from co-mutated storage and arithmetic IR, not names."""
