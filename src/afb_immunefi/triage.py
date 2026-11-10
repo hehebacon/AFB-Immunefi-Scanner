@@ -35,7 +35,7 @@ def load_slither_report(path: Path):
             })
     return output
 
-def load_aderyn_report(path: Path):
+def load_aderyn_report(path: Path, source_root: Path | None = None):
     """Conservative Markdown parser; retains heading context and nearby location hints."""
     text = path.read_text(encoding="utf-8", errors="replace")
     output = []
@@ -46,6 +46,9 @@ def load_aderyn_report(path: Path):
         section = text[match.end():section_end]
         severity_match = re.search(r"(?i)\b(critical|high|medium|low|informational)\b", title + " " + section[:500])
         location_match = re.search(r"(?m)(?:File|Location|Source):\s*([^\n:]+)(?::(\d+))?", section)
+        source = location_match.group(1).strip() if location_match else None
+        if source and source_root is not None and not Path(source).is_absolute():
+            source = str((source_root / source).resolve())
         output.append({
             "id": f"ADERYN-{index+1:04d}",
             "analyzer": "aderyn",
@@ -54,7 +57,7 @@ def load_aderyn_report(path: Path):
             "description": section[:2000].strip(),
             "severity": severity_match.group(1).lower() if severity_match else "undetermined",
             "confidence": "unknown",
-            "source": location_match.group(1).strip() if location_match else None,
+            "source": source,
             "line": int(location_match.group(2)) if location_match and location_match.group(2) else None,
             "status": "tool_reported_unverified",
         })
@@ -90,12 +93,22 @@ def deduplicate_findings(findings):
     for finding in findings:
         source, line = _location_key(finding)
         title = _key(finding.get("title") or finding.get("rule_id"))
-        key = (source, int(line), title) if source and line is not None else ("unlocated", finding.get("analyzer"), finding.get("id"))
+        analyzer = finding.get("analyzer", "unknown")
+        key = (source, int(line), title) if source and line is not None else ("unlocated", analyzer, finding.get("id"))
+        # Cross-analyzer names can differ; merge only at the same file/line
+        # and when at least one meaningful title token overlaps.
+        if source and line is not None and key not in groups:
+            tokens = set(re.findall(r"[a-z0-9]+", (finding.get("title") or "").lower()))
+            for existing_key, existing in groups.items():
+                if existing_key[0] == source and existing_key[1] == int(line):
+                    other_tokens = set(re.findall(r"[a-z0-9]+", (existing.get("title") or "").lower()))
+                    if analyzer not in existing["analyzers"] and tokens & other_tokens:
+                        key = existing_key
+                        break
         if key not in groups:
-            groups[key] = {**finding, "analyzers": [finding.get("analyzer", "unknown")], "duplicates": []}
+            groups[key] = {**finding, "analyzers": [analyzer], "duplicates": []}
         else:
             group = groups[key]
-            analyzer = finding.get("analyzer", "unknown")
             if analyzer not in group["analyzers"]:
                 group["analyzers"].append(analyzer)
             group["duplicates"].append({"id": finding.get("id"), "analyzer": analyzer, "rule_id": finding.get("rule_id")})
