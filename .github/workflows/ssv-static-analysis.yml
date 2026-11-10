@@ -25,6 +25,10 @@ on:
         type: boolean
         default: true
 
+concurrency:
+  group: ssv-analysis-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
