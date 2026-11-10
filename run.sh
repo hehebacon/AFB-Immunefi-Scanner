@@ -44,5 +44,8 @@ for tool in slither aderyn forge echidna; do
   fi
 done
 
-printf '\n[AFB] Launching desktop UI...\n'
-exec "$PY" "$ROOT/intro.py"
+printf '\n[AFB] Verifying the desktop entry point...\n'
+"$PY" -c 'from afb_immunefi.ui import main; assert callable(main)' || fail "Could not import the desktop UI. The CLI entry point will not be started."
+
+printf '[AFB] Launching desktop UI (not the afb-immunefi CLI)...\n'
+exec "$PY" -c 'from afb_immunefi.ui import main; main()'
