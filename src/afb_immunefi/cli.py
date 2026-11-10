@@ -6,7 +6,7 @@ from .workspace import initialize_workspace, workspace_status
 from .policy import require_policy, load_policy, policy_issues
 from .inventory import inventory_sources
 from .detectors import scan_sources
-from .toolchain import check_tools, run_slither_local
+from .toolchain import check_tools, run_slither_local, run_echidna_local
 from .reporting import write_report
 from .program_intake import save_program_intake
 from .analysis import run_analysis
@@ -23,6 +23,7 @@ def build_parser():
     q=sub.add_parser("scan",help="Run conservative local source-review heuristics."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
     sub.add_parser("tools",help="Check local security-tool availability.")
     q=sub.add_parser("slither",help="Run Slither on local source after policy gate."); q.add_argument("--source",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
+    q=sub.add_parser("echidna",help="Run local Echidna property fuzzing against a harness after policy gate."); q.add_argument("--source",type=Path,required=True); q.add_argument("--contract",required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--config",type=Path); q.add_argument("--test-limit",type=int,default=5000); q.add_argument("--seq-len",type=int,default=50); q.add_argument("--timeout",type=int,default=1800); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
     q=sub.add_parser("verify-deployments",help="Check deployed source verification metadata via read-only Sourcify API."); q.add_argument("--targets",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace")); q.add_argument("--source",type=Path,help="Local downloaded Solidity source tree to compare against verified source")
     q=sub.add_parser("report",help="Generate a Markdown review report."); q.add_argument("--findings",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--program",default="Unspecified program")
     return p
@@ -53,6 +54,11 @@ def main():
         elif a.command=="slither":
             require_policy(a.workspace/"program/policy.yaml")
             result=run_slither_local(a.source,a.output); print(json.dumps(result,indent=2)); return int(result["returncode"])
+        elif a.command=="echidna":
+            require_policy(a.workspace/"program/policy.yaml")
+            result=run_echidna_local(a.source,a.contract,a.output,config=a.config,test_limit=a.test_limit,seq_len=a.seq_len,timeout=a.timeout)
+            print(json.dumps({k:v for k,v in result.items() if k not in {"stdout","stderr"}},indent=2))
+            return int(result["returncode"])
         elif a.command=="verify-deployments":
             require_policy(a.workspace/"program/policy.yaml")
             result=verify_targets_file(a.targets,a.output,source_root=a.source)
