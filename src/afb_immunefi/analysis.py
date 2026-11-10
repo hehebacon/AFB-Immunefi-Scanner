@@ -45,6 +45,7 @@ def _slither_findings(path: Path, source_root: Path) -> list[dict]:
                     pass
             findings.append({
                 "id":f"SLITHER-{index:04d}-{len(findings)+1:02d}",
+                "analyzer":"slither",
                 "rule_id":item.get("check","slither-detector"),
                 "category":"slither",
                 "title":item.get("check","Slither detector reported a finding"),
@@ -127,8 +128,7 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
             echidna_findings=load_echidna_report(echidna_path)
         except (OSError,ValueError,json.JSONDecodeError):
             echidna_findings=[]
-    triage=build_triage_report(slither=slither_findings,aderyn=aderyn_findings,echidna=echidna_findings,logic=logic_findings)
-    combined=build_triage_report(logic=heuristic,slither=slither_findings,aderyn=aderyn_findings,echidna=echidna_findings)
+    combined=build_triage_report(logic=[*heuristic,*logic_findings],slither=slither_findings,aderyn=aderyn_findings,echidna=echidna_findings)
     findings=combined["findings"]
     return {
         "schema_version":2,
