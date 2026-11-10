@@ -122,6 +122,7 @@ jobs:
           echo "Slither: ${SLITHER_OUTCOME}"
           echo "AFB: ${AFB_OUTCOME}"
           echo "Aderyn: ${ADERYN_OUTCOME:-skipped}"
+          test "${TEST_OUTCOME}" = "success"
           test "${SLITHER_OUTCOME}" = "success"
           test "${AFB_OUTCOME}" = "success"
           if [ "${RUN_ADERYN}" = "true" ]; then
