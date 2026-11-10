@@ -15,7 +15,7 @@ echo "[AFB] Drop each authorized source tree into scopes/<name>/source/"
 echo "[AFB] Each scope needs scopes/<name>/workspace/program/policy.yaml"
 echo "[AFB] The policy must be human-reviewed and explicitly confirmed."
 
-declare -A LAST_DIGEST=()
+declare -A LAST_DIGEST=()\ndeclare -A LAST_WAIT=()
 while true; do
   shopt -s nullglob
   for scope_dir in "$SCOPES"/*/; do
@@ -30,13 +30,24 @@ while true; do
     if [[ ! -f "$policy" ]]; then
       echo "[AFB] Initializing workspace for $name ..."
       afb-immunefi init --workspace "$workspace"
-      echo "[AFB] WAIT $name: review and complete $policy, then source will be scanned automatically."
+      if [[ "${LAST_WAIT[$name]:-}" != "created" ]]; then
+        echo "[AFB] WAIT $name: review and complete $policy, then source will be scanned automatically."
+        LAST_WAIT[$name]="created"
+      fi
       continue
     fi
 
     digest="$(find "$source_dir" -type f \( -name '*.sol' -o -name 'foundry.toml' -o -name 'hardhat.config.*' \) -print0 | sort -z | xargs -0 -r sha256sum | sha256sum | cut -d' ' -f1)"
     [[ "${LAST_DIGEST[$name]:-}" == "$digest" ]] && continue
 
+    if ! afb-immunefi policy-check --workspace "$workspace" >/dev/null 2>&1; then
+      if [[ "${LAST_WAIT[$name]:-}" != "$digest" ]]; then
+        echo "[AFB] WAIT $name: policy gate is closed. Complete the human review in $policy."
+        LAST_WAIT[$name]="$digest"
+      fi
+      continue
+    fi
+    LAST_WAIT[$name]=""
     echo "[AFB] New/changed source detected: $name"
     if afb-immunefi analyze --source "$source_dir" --workspace "$workspace" --output "$workspace/findings/analysis.json"; then
       LAST_DIGEST[$name]="$digest"
