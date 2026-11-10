@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
+from .symbolic import explore_contract_paths, infer_structural_invariants
 
 
 def _names(items) -> list[str]:
@@ -107,6 +108,16 @@ def run_logic_review(source: Path) -> dict:
                         getattr(child, "node_id", None)
                         for child in (getattr(node, "sons", []) or [])
                     ]
+                    true_node = getattr(node, "son_true", None)
+                    false_node = getattr(node, "son_false", None)
+                    ir_details = []
+                    for ir in (getattr(node, "irs", []) or []):
+                        ir_details.append({
+                            "operation": type(ir).__name__,
+                            "text": str(ir)[:500],
+                            "lvalue": str(getattr(ir, "lvalue", "") or "")[:200],
+                            "rvalue": str(getattr(ir, "rvalue", "") or "")[:200],
+                        })
                     cfg_rows.append({
                         "function": function.canonical_name,
                         "node_id": node_id,
@@ -114,6 +125,9 @@ def run_logic_review(source: Path) -> dict:
                         "expression": str(getattr(node, "expression", "") or "")[:500],
                         "ir_operations": irs,
                         "successors": [value for value in successors if value is not None],
+                        "true_successor": getattr(true_node, "node_id", None),
+                        "false_successor": getattr(false_node, "node_id", None),
+                        "ir_details": ir_details,
                     })
 
                 for variable in getattr(function, "state_variables_read", []) or []:
@@ -283,7 +297,7 @@ def run_logic_review(source: Path) -> dict:
                             "requires_human_authored_or_reviewed_oracle": True,
                         })
 
-            contracts.append({
+            contract_row = {
                 "name": contract.name,
                 "functions": function_rows,
                 "cfg_nodes": cfg_rows,
@@ -300,7 +314,15 @@ def run_logic_review(source: Path) -> dict:
                     }
                     for name in sorted(set(readers) | set(writers))
                 ],
-            })
+            }
+            contract_row["structural_invariant_hypotheses"] = infer_structural_invariants(contract_row)
+            contract_row["bounded_path_analysis"] = explore_contract_paths(contract_row)
+            contracts.append(contract_row)
+
+        path_summary = {"feasible": 0, "infeasible": 0, "unknown": 0, "truncated": 0}
+        for contract_row in contracts:
+            for key, value in contract_row["bounded_path_analysis"]["summary"].items():
+                path_summary[key] += value
 
         return {
             "status": "completed",
@@ -314,14 +336,18 @@ def run_logic_review(source: Path) -> dict:
             "findings_count": len(findings),
             "cfg_nodes_analyzed": sum(len(contract_row["cfg_nodes"]) for contract_row in contracts),
             "invariant_candidates_count": sum(
-                len(contract_row["invariant_candidates"]) for contract_row in contracts
+                len(contract_row["invariant_candidates"]) + len(contract_row["structural_invariant_hypotheses"])
+                for contract_row in contracts
             ),
+            "path_analysis_summary": path_summary,
             "analysis_capabilities": {
                 "cross_function_call_and_state_map": "implemented",
                 "transitive_internal_call_state_effects": "implemented_conservative_graph_closure",
                 "cfg_and_ir_summary": "implemented",
                 "invariant_candidate_inference": "heuristic_review_only",
-                "path_sensitive_symbolic_execution": "not_implemented",
+                "bounded_path_condition_feasibility": "implemented_with_optional_z3",
+                "path_sensitive_evm_state_symbolic_execution": "not_implemented",
+                "structural_invariant_hypothesis_inference": "implemented_review_only",
                 "stateful_fuzz_execution": "not_implemented_by_this_module",
                 "differential_execution": "not_implemented_by_this_module",
             },
@@ -330,9 +356,9 @@ def run_logic_review(source: Path) -> dict:
             "limitations": [
                 "These are semantic review leads, not confirmed vulnerabilities.",
                 "No path feasibility, economic impact, or exploitability is established.",
-                "CFG/IR summaries are structural evidence, not path-sensitive symbolic execution.",
+                "Bounded path-condition solving checks only supported branch predicates; it is not full EVM symbolic execution and does not model storage, external calls, gas or reentrancy.",
                 "Internal-call state effects are a graph closure over Slither's reported calls; dynamic dispatch, library semantics and path conditions are not proven.",
-                "Invariant candidates are inferred from variable names and dataflow; they are not proven protocol invariants.",
+                "Invariant candidates include name/dataflow heuristics and co-mutated-storage/IR hypotheses; neither is a proven protocol invariant without a reviewed oracle.",
                 "Stateful fuzzing and differential execution require a project-specific harness and are not performed by this module.",
                 "Inline authorization and cross-contract invariants require manual call-path review and local tests.",
             ],
