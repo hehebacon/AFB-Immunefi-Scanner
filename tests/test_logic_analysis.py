@@ -123,5 +123,50 @@ class LogicReviewTests(unittest.TestCase):
         self.assertEqual(lead["status"], "needs_review")
 
 
+class EchidnaAdapterTests(unittest.TestCase):
+    def test_runs_local_property_campaign_and_saves_json(self):
+        import json
+        from types import SimpleNamespace
+        from afb_immunefi.toolchain import run_echidna_local
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "reports" / "campaign.json"
+            process = SimpleNamespace(
+                returncode=0,
+                stdout='{"success": true, "tests": []}',
+                stderr="",
+            )
+            with patch("afb_immunefi.toolchain.shutil.which", return_value="/usr/bin/echidna"), patch(
+                "afb_immunefi.toolchain.subprocess.run", return_value=process
+            ) as run:
+                result = run_echidna_local(
+                    root, "DemoEchidna", output, test_limit=100, seq_len=20
+                )
+
+            self.assertEqual(result["returncode"], 0)
+            self.assertTrue(result["json_parsed"])
+            self.assertTrue(result["campaign_success"])
+            self.assertTrue(json.loads(output.read_text())["success"])
+            self.assertIn("--contract", run.call_args.args[0])
+            self.assertIn("DemoEchidna", run.call_args.args[0])
+            self.assertEqual(run.call_args.kwargs["cwd"], root.resolve())
+
+    def test_rejects_invalid_contract_name_before_execution(self):
+        from afb_immunefi.toolchain import run_echidna_local
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                run_echidna_local(Path(tmp), "Demo; invalid", Path(tmp) / "out.json")
+
+    def test_reports_missing_echidna_binary(self):
+        from afb_immunefi.toolchain import run_echidna_local
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("afb_immunefi.toolchain.shutil.which", return_value=None):
+                with self.assertRaises(FileNotFoundError):
+                    run_echidna_local(Path(tmp), "DemoEchidna", Path(tmp) / "out.json")
+
+
 if __name__ == "__main__":
     unittest.main()
