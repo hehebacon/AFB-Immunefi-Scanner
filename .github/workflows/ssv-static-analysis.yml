@@ -69,6 +69,7 @@ jobs:
           slither --version
 
       - name: Run AFB unit tests
+        id: tests
         run: python -m unittest discover -s afb/tests -v
 
       - name: Run Slither on local SSV source
