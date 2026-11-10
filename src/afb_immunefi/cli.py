@@ -79,7 +79,7 @@ def main():
             print(json.dumps(result,indent=2)); return 0 if result["reference_returncode"]==0 and result["candidate_returncode"]==0 else 1
         elif a.command=="triage":
             source_root=a.source_root.resolve() if a.source_root else None
-            slither=load_slither_report(a.slither) if a.slither else []
+            slither=load_slither_report(a.slither, source_root) if a.slither else []
             aderyn=load_aderyn_report(a.aderyn,source_root) if a.aderyn else []
             echidna=load_echidna_report(a.echidna) if a.echidna else []
             logic=json.loads(a.logic.read_text(encoding="utf-8")) if a.logic else []
