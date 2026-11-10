@@ -67,6 +67,7 @@ Run it from GitHub Actions → **SSV Network local static analysis** → **Run w
 
 The semantic map now includes:
 - Function-to-function internal call references and per-function CFG node/IR summaries.
+- A conservative transitive closure over known internal-call edges, so an external entrypoint can inherit state reads/writes from reachable helper functions. This improves cross-function coverage but does not establish path feasibility, dynamic dispatch behavior, or authorization correctness.
 - Shared state readers/writers and modifier asymmetry review leads.
 - Heuristic accounting/lifecycle invariant candidates for state variables whose names and dataflow suggest balances, fees, rewards, staking, validator/cluster lifecycle, counts, or indexes.
 
