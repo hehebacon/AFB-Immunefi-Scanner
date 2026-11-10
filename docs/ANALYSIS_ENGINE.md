@@ -48,7 +48,7 @@ The intake downloader now retains Solidity files plus selected build metadata (f
 2. Resolve imports, inheritance, libraries, proxy/implementation relationships and compiler settings.
 3. Trace the full external entrypoint and internal/high-level call paths.
 4. Define protocol invariants (for example accounting conservation, validator/cluster lifecycle consistency, nonce uniqueness or fee/reward conservation) from the protocol specification—not guessed from variable names.
-5. Write deterministic unit, invariant or fuzz tests in a local isolated project/fork.
+5. Write deterministic unit, invariant or fuzz tests in a local isolated project/fork. When the project provides a reviewed Echidna harness, run a bounded local property campaign and preserve any counterexample for triage.
 6. Reproduce the violation and establish attacker-controlled preconditions.
 7. Check current scope, exclusions, known issues, audit history and impact definitions.
 8. Require human review before any external report.
@@ -61,7 +61,7 @@ Static analysis cannot guarantee discovery of every bug or a 100% true-positive 
 ## SSV Network local validation workflow
 
 A manual GitHub Actions workflow is available at `.github/workflows/ssv-static-analysis.yml`.
-It checks out the public `ssvlabs/ssv-network` source at a selected git ref, installs dependencies, compiles locally, runs Slither, runs the AFB Slither-Python semantic map, and optionally invokes the official Aderyn CI action. It does not contact deployed contracts, submit transactions, or run tests against mainnet/public testnets.
+It checks out the public `ssvlabs/ssv-network` source at a selected git ref, installs dependencies, compiles locally, runs the `SSVAccountingEchidna` property harness with a bounded Echidna campaign, runs Slither, runs the AFB Slither-Python semantic map, and optionally invokes Aderyn. It does not contact deployed contracts, submit transactions, or run tests against mainnet/public testnets.
 
 Run it from GitHub Actions → **SSV Network local static analysis** → **Run workflow**. The reports are uploaded as the `ssv-network-static-analysis` artifact.
 
@@ -74,6 +74,6 @@ The semantic map now includes:
 Important capability boundary:
 - CFG/IR extraction is structural analysis, not path-sensitive symbolic execution.
 - Invariant candidates are hypotheses requiring protocol specifications and a reviewed oracle; they are not proven invariants.
-- This module does not execute differential tests or stateful fuzzing. Those require a project-specific test harness.
-- SSV source contains project-authored Echidna accounting and lifecycle harnesses. These are useful independent test assets, but this workflow does not claim to have executed Echidna unless a separate fuzz job records its run and results.
-- A successful unit-test workflow for AFB does not mean Slither/Aderyn has successfully analyzed SSV. Only the manual SSV workflow artifact can establish that.
+- The semantic-map module itself does not execute symbolic execution or differential testing. Those require separate engines and project-specific oracles.
+- Echidna checks only the properties encoded in the selected harness. A bounded passing campaign is not proof that all protocol behaviors are safe; a falsified property is a counterexample requiring reproduction and triage.
+- A successful AFB unit-test workflow does not mean Slither/Aderyn/Echidna has completed successfully on SSV. Inspect the SSV workflow artifact and step outcomes.
