@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 from .symbolic import explore_contract_paths, infer_structural_invariants
+from .brains import run_five_brains
 
 
 def _names(items) -> list[str]:
@@ -319,6 +320,9 @@ def run_logic_review(source: Path) -> dict:
             contract_row["bounded_path_analysis"] = explore_contract_paths(contract_row)
             contracts.append(contract_row)
 
+        brain_result = run_five_brains(contracts)
+        findings.extend(brain_result["hypotheses"])
+
         path_summary = {"feasible": 0, "infeasible": 0, "unknown": 0, "truncated": 0}
         for contract_row in contracts:
             for key, value in contract_row["bounded_path_analysis"]["summary"].items():
@@ -334,6 +338,7 @@ def run_logic_review(source: Path) -> dict:
                 if function_row["is_external_entrypoint"]
             ),
             "findings_count": len(findings),
+            "parallel_brains": {k: v for k, v in brain_result.items() if k != "hypotheses"},
             "cfg_nodes_analyzed": sum(len(contract_row["cfg_nodes"]) for contract_row in contracts),
             "invariant_candidates_count": sum(
                 len(contract_row["invariant_candidates"]) + len(contract_row["structural_invariant_hypotheses"])
@@ -353,6 +358,7 @@ def run_logic_review(source: Path) -> dict:
             },
             "contracts": contracts,
             "findings": findings,
+            "brain_hypotheses": brain_result["hypotheses"],
             "limitations": [
                 "These are semantic review leads, not confirmed vulnerabilities.",
                 "No path feasibility, economic impact, or exploitability is established.",
