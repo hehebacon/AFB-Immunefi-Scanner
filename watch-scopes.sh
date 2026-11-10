@@ -28,7 +28,9 @@ while true; do
     (("${#sol_files[@]}" > 0)) || continue
 
     if [[ ! -f "$policy" ]]; then
-      echo "[AFB] WAIT $name: missing $policy (initialize workspace and review policy)."
+      echo "[AFB] Initializing workspace for $name ..."
+      afb-immunefi init --workspace "$workspace"
+      echo "[AFB] WAIT $name: review and complete $policy, then source will be scanned automatically."
       continue
     fi
 
@@ -39,9 +41,6 @@ while true; do
     if afb-immunefi analyze --source "$source_dir" --workspace "$workspace" --output "$workspace/findings/analysis.json"; then
       LAST_DIGEST[$name]="$digest"
       echo "[AFB] COMPLETE $name -> $workspace/findings/analysis.json"
-      if ! grep -q '"potential_findings": 0' "$workspace/findings/analysis.json" 2>/dev/null; then
-        :
-      fi
       count="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d.get("findings", [])))' "$workspace/findings/analysis.json")"
       if [[ "$count" == "0" ]]; then
         echo "<no bugs more appear on this scope>"
