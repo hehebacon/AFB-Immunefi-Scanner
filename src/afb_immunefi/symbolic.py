@@ -91,7 +91,7 @@ def _path_status(constraints, z3_module):
     return "feasible" if result == z3_module.sat else "infeasible" if result == z3_module.unsat else "unknown"
 
 
-def explore_contract_paths(contract_row, *, max_paths=250, max_depth=100):
+def explore_contract_paths(contract_row, *, max_paths=30, max_depth=50, sample_paths=10):
     """Explore bounded CFG paths and solve supported branch predicates with Z3."""
     try:
         import z3
@@ -131,7 +131,9 @@ def explore_contract_paths(contract_row, *, max_paths=250, max_depth=100):
                 status = _path_status(constraints, z3)
                 totals[status] += 1
                 seen_paths += 1
-                results.append({
+                if len(results) < sample_paths:
+                    if len(results) < sample_paths:
+                        results.append({
                     "function": name, "nodes": path, "constraints": [
                         {"expression": expr, "truth": truth} for expr, truth in constraints
                     ], "feasibility": status,
