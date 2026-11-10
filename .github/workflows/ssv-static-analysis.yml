@@ -141,7 +141,8 @@ jobs:
           reports = Path('reports')
           def load_if_exists(path, loader):
               return loader(path) if path.is_file() else []
-          slither = load_if_exists(reports / 'slither.json', load_slither_report)
+          slither_path = reports / 'slither.json'
+          slither = load_slither_report(slither_path, root) if slither_path.is_file() else []
           aderyn = load_if_exists(reports / 'aderyn-report.md', lambda p: load_aderyn_report(p, root))
           echidna = load_if_exists(root / 'echidna-report.json', load_echidna_report)
           logic_path = reports / 'afb-logic-review.json'
