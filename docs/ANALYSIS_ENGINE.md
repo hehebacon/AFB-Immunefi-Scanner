@@ -6,7 +6,7 @@ The unified `afb-immunefi analyze` command runs three complementary layers on a 
 
 1. Built-in source heuristics for quick review leads.
 2. Slither's standard detector suite, normalized from its JSON output.
-3. A Slither Python-API semantic pass that maps external entrypoints, state reads/writes, modifiers, internal calls and high-level calls. It emits cross-function logic-review leads when multiple paths mutate shared state, when writer paths have asymmetric modifier coverage, or when a state-changing entrypoint needs its authorization path reviewed. This pass runs independently of the Slither CLI detector process; a missing CLI binary does not suppress it if the Python API is installed.
+3. A Slither Python-API semantic pass that maps external entrypoints, state reads/writes, modifiers, internal calls and high-level calls. It adds bounded CFG path-condition feasibility using optional Z3 and structural invariant hypotheses from co-mutated storage and IR operation families. Unsupported path expressions remain unknown; this is not full EVM symbolic execution.
 
 Aderyn is run as an additional independent analyzer when installed. Its native report is preserved.
 
@@ -40,7 +40,7 @@ The intake downloader now retains Solidity files plus selected build metadata (f
 - `potential`: built-in source heuristic matched.
 - `tool_reported_unverified`: Slither detector emitted a finding.
 - `needs_review`: semantic logic map found a state interaction worth tracing.
-- None of these statuses means a vulnerability is confirmed.
+- None of these statuses means a vulnerability is confirmed. Deduplication only merges findings with matching source, line and normalized title; unlocated results are kept separate.
 
 ## Validation workflow
 
@@ -57,6 +57,24 @@ The intake downloader now retains Solidity files plus selected build metadata (f
 
 Static analysis cannot guarantee discovery of every bug or a 100% true-positive rate. Slither's parser/build can fail when compiler versions, dependencies, submodules or project configuration are missing. A zero-finding result means only that enabled checks did not emit leads; it does not prove the protocol is secure.
 
+
+## Bounded symbolic path analysis
+
+The semantic pass explores bounded paths over Slither CFG nodes. For supported integer and boolean branch expressions, it builds path constraints and asks Z3 whether the conjunction is satisfiable. Results are classified as `feasible`, `infeasible` or `unknown`; loops and path counts are bounded.
+
+This is a path-condition solver, not a full EVM symbolic executor. It does not yet model Solidity storage values, mapping/array semantics, arithmetic bit-vector overflow, external calls, delegatecall, gas, reentrancy or environment state. Unsupported syntax remains `unknown`, never silently treated as safe.
+
+Structural invariant hypotheses are derived from state variables co-mutated by the same functions and observed IR operation families. The engine does not invent a conservation equation or assert a protocol invariant without a specification-backed oracle. A reviewer must formulate the exact property and encode it in a test/harness.
+
+## Cross-tool triage and validation
+
+The unified analyzer normalizes Slither JSON, Aderyn Markdown, imported Echidna counterexamples and AFB semantic leads. It merges only findings with the same normalized title and exact source/line; findings without a stable location are kept separate to avoid accidental merges. Every result remains unverified.
+
+`afb-immunefi validate` runs the local Foundry test suite and maps test outcomes to finding IDs using a user-authored JSON test map. A failing test is a reproduction candidate, not a confirmed bug; inspect the assertion, trace, preconditions and scope.
+
+`afb-immunefi differential` runs the same Foundry tests against two local snapshots and reports changed test outcomes. This is regression-test differential analysis, not full EVM state equivalence.
+
+`afb-immunefi benchmark` computes TP/FP/FN/TN, precision, recall and F1 only against an explicitly supplied, finite labeled manifest. These metrics are meaningful only for that corpus. No benchmark labels are assumed or fabricated by the scanner.
 
 ## SSV Network local validation workflow
 
