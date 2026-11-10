@@ -55,7 +55,7 @@ class LogicReviewTests(unittest.TestCase):
         self.assertTrue(any(x["rule_id"] == "LOGIC002" for x in result["findings"]))
         self.assertTrue(any(x["rule_id"] == "LOGIC003" for x in result["findings"]))
         self.assertGreaterEqual(result["invariant_candidates_count"], 1)
-        self.assertEqual(result["analysis_capabilities"]["path_sensitive_symbolic_execution"], "not_implemented")
+        self.assertEqual(result["analysis_capabilities"]["bounded_path_condition_feasibility"], "implemented_with_optional_z3")
 
     def test_transitive_internal_call_state_effects_include_cycles(self):
         rows = {
@@ -166,6 +166,48 @@ class EchidnaAdapterTests(unittest.TestCase):
             with patch("afb_immunefi.toolchain.shutil.which", return_value=None):
                 with self.assertRaises(FileNotFoundError):
                     run_echidna_local(Path(tmp), "DemoEchidna", Path(tmp) / "out.json")
+
+
+class SymbolicPathTests(unittest.TestCase):
+    def test_contradictory_branch_path_is_marked_infeasible(self):
+        from afb_immunefi.symbolic import explore_contract_paths
+        contract = {
+            "functions": [{"name": "Demo.foo"}],
+            "cfg_nodes": [
+                {"function": "Demo.foo", "node_id": 1, "expression": "x > 0", "successors": [2, 3], "true_successor": 2, "false_successor": 3},
+                {"function": "Demo.foo", "node_id": 2, "expression": "x < 0", "successors": [4, 5], "true_successor": 4, "false_successor": 5},
+                {"function": "Demo.foo", "node_id": 3, "expression": "", "successors": []},
+                {"function": "Demo.foo", "node_id": 4, "expression": "", "successors": []},
+                {"function": "Demo.foo", "node_id": 5, "expression": "", "successors": []},
+            ],
+        }
+        result = explore_contract_paths(contract)
+        contradictory = [p for p in result["paths"] if p["nodes"] == [1, 2, 4]]
+        self.assertEqual(len(contradictory), 1)
+        try:
+            import z3
+        except ImportError:
+            self.assertEqual(contradictory[0]["feasibility"], "unknown")
+        else:
+            self.assertEqual(contradictory[0]["feasibility"], "infeasible")
+
+    def test_structural_invariants_do_not_depend_on_variable_names(self):
+        from afb_immunefi.symbolic import infer_structural_invariants
+        contract = {
+            "functions": [{
+                "name": "Vault.update",
+                "writes": ["Vault.a", "Vault.b"],
+                "effective_writes": ["Vault.a", "Vault.b"],
+            }],
+            "cfg_nodes": [{
+                "function": "Vault.update",
+                "ir_details": [{"operation": "Binary", "text": "a - amount"}, {"operation": "Assignment", "text": "b = b + amount"}],
+            }],
+        }
+        result = infer_structural_invariants(contract)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["co_mutated_state_variables"], ["Vault.a", "Vault.b"])
+        self.assertEqual(result[0]["status"], "hypothesis_requires_oracle")
 
 
 if __name__ == "__main__":
