@@ -79,6 +79,53 @@ afb-immunefi slither \
   --workspace ./workspace
 ```
 
+To explore bounded CFG path conditions (Z3 is installed with the analysis extra), derive structural invariant hypotheses, and inspect path feasibility counts, run the unified `analyze` command above. Unsupported branch expressions remain unknown; this is not full EVM symbolic execution.
+
+Map local Foundry regression tests to review leads with a JSON file:
+```json
+{
+  "finding_tests": {
+    "LOGIC-0001": "test_AFB_LOGIC_0001",
+    "SLITHER-0001-01": "test_AFB_SLITHER_0001"
+  }
+}
+```
+Then execute only against a local Foundry project:
+```bash
+afb-immunefi validate \
+  --source ./workspace/reconnaissance/sources/ssvlabs-ssv-network \
+  --test-map ./workspace/analysis/finding-tests.json \
+  --output ./workspace/analysis/validation.json \
+  --workspace ./workspace
+```
+A failing mapped test is a reproduction candidate requiring trace/root-cause review; it is not automatically a confirmed vulnerability.
+
+Compare test outcomes across two local snapshots:
+```bash
+afb-immunefi differential \
+  --reference ./workspace/snapshots/baseline \
+  --candidate ./workspace/snapshots/candidate \
+  --output ./workspace/analysis/differential.json \
+  --workspace ./workspace
+```
+This compares Foundry test outcomes, not complete EVM state equivalence.
+
+Measure TP/FP/FN/TN only against a labeled fixture manifest:
+```json
+{
+  "name": "my-reviewed-fixtures",
+  "positive_cases": ["BUG-A", "BUG-B"],
+  "negative_cases": ["FALSE-POSITIVE-A", "CLEAN-FIXTURE"]
+}
+```
+```bash
+afb-immunefi benchmark \
+  --findings ./workspace/findings/ssv-analysis.json \
+  --manifest ./workspace/benchmarks/manifest.json \
+  --output ./workspace/benchmarks/metrics.json
+```
+The metrics describe that corpus only; do not treat them as real-world accuracy estimates.
+
 To run tests:
 ```bash
 python -m unittest discover -s tests -v
