@@ -1,6 +1,13 @@
 name: SSV Network local static analysis
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - ".github/workflows/ssv-static-analysis.yml"
   workflow_dispatch:
     inputs:
       source_ref:
@@ -30,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ssvlabs/ssv-network
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || 'main' }}
           path: ssv-network
           persist-credentials: false
 
@@ -61,6 +68,9 @@ jobs:
           solc-select use 0.8.24
           slither --version
 
+      - name: Run AFB unit tests
+        run: python -m unittest discover -s afb/tests -v
+
       - name: Run Slither on local SSV source
         id: slither
         continue-on-error: true
@@ -77,12 +87,12 @@ jobs:
           python -c "import json; from pathlib import Path; from afb_immunefi.logic_analysis import run_logic_review; p=run_logic_review(Path('ssv-network')); Path('reports/afb-logic-review.json').write_text(json.dumps(p, indent=2)); print(json.dumps({k:p.get(k) for k in ('status','contracts_analyzed','entrypoints_analyzed','cfg_nodes_analyzed','invariant_candidates_count','findings_count','analysis_capabilities')}, indent=2)); raise SystemExit(0 if p.get('status') == 'completed' else 2)"
 
       - name: Install Aderyn
-        if: always() && inputs.run_aderyn
+        if: always() && (github.event_name == 'push' || inputs.run_aderyn)
         run: npm install --global @cyfrin/aderyn@0.6
 
       - name: Run Aderyn on local SSV source
         id: aderyn
-        if: always() && inputs.run_aderyn
+        if: always() && (github.event_name == 'push' || inputs.run_aderyn)
         working-directory: ssv-network
         run: |
           mkdir -p ../reports
@@ -104,8 +114,9 @@ jobs:
         env:
           SLITHER_OUTCOME: ${{ steps.slither.outcome }}
           AFB_OUTCOME: ${{ steps.afb.outcome }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
           ADERYN_OUTCOME: ${{ steps.aderyn.outcome }}
-          RUN_ADERYN: ${{ inputs.run_aderyn }}
+          RUN_ADERYN: ${{ github.event_name == 'push' || inputs.run_aderyn }}
         run: |
           echo "Slither: ${SLITHER_OUTCOME}"
           echo "AFB: ${AFB_OUTCOME}"
