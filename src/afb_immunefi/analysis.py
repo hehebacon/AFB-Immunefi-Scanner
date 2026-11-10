@@ -8,6 +8,7 @@ from .inventory import inventory_sources
 from .detectors import scan_sources
 from .toolchain import run_slither_local, run_aderyn_local
 from .logic_analysis import run_logic_review
+from .triage import load_aderyn_report, load_echidna_report, build_triage_report
 
 
 def _severity(value: str | None) -> str:
@@ -68,6 +69,8 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
     heuristic=scan_sources(source)
     slither_result={"status":"not_requested"}
     aderyn_result={"status":"not_requested"}
+    aderyn_findings=[]
+    echidna_findings=[]
     logic_result={"status":"not_requested"}
     slither_findings=[]
     logic_findings=[]
@@ -91,9 +94,10 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
 
         if shutil.which("aderyn"):
             try:
-                aderyn_output=static_dir/"aderyn.json"
+                aderyn_output=static_dir/"aderyn-report.md"
                 aderyn_run=run_aderyn_local(source,aderyn_output)
-                aderyn_result={"status":"completed" if aderyn_run["output_exists"] else "completed_without_report","returncode":aderyn_run["returncode"],"output":str(aderyn_output),"note":"Native report preserved; findings are not automatically promoted to confirmed vulnerabilities."}
+                aderyn_findings=load_aderyn_report(aderyn_output) if aderyn_run["output_exists"] else []
+                aderyn_result={"status":"completed" if aderyn_run["output_exists"] else "completed_without_report","returncode":aderyn_run["returncode"],"output":str(aderyn_output),"normalized_findings":len(aderyn_findings),"note":"Native report preserved; parsed findings remain unverified."}
             except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
                 aderyn_result={"status":"failed","error":str(exc)}
         else:
@@ -117,7 +121,15 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
         else:
             slither_result={"status":"not_installed","note":"Install the Slither CLI to enable standard detector analysis."}
 
-    findings=heuristic+slither_findings+logic_findings
+    echidna_path=static_dir/"echidna.json"
+    if echidna_path.is_file():
+        try:
+            echidna_findings=load_echidna_report(echidna_path)
+        except (OSError,ValueError,json.JSONDecodeError):
+            echidna_findings=[]
+    triage=build_triage_report(slither=slither_findings,aderyn=aderyn_findings,echidna=echidna_findings,logic=logic_findings)
+    combined=build_triage_report(logic=heuristic,slither=slither_findings,aderyn=aderyn_findings,echidna=echidna_findings)
+    findings=combined["findings"]
     return {
         "schema_version":2,
         "analysis_mode":"local_source_analysis",
@@ -127,9 +139,14 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
             "heuristic_leads":len(heuristic),
             "slither_findings":len(slither_findings),
             "logic_review_leads":len(logic_findings),
+            "aderyn_findings":len(aderyn_findings),
+            "echidna_counterexamples":len(echidna_findings),
+            "raw_findings_before_deduplication":combined["raw_finding_count"],
+            "deduplicated_findings":combined["deduplicated_finding_count"],
             "tools":{"heuristics":"completed","slither":slither_result,"aderyn":aderyn_result,"logic_review":logic_result},
         },
         "findings":findings,
+        "triage": {"raw_finding_count":combined["raw_finding_count"],"deduplicated_finding_count":combined["deduplicated_finding_count"],"validation_status":combined["validation_status"]},
         "validation_policy":{
             "confirmed_vulnerabilities":0,
             "all_results_are_unverified":True,
