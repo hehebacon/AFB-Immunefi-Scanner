@@ -15,12 +15,17 @@ def _location_key(item):
         line = lines[0] if lines else None
     return source, line
 
-def load_slither_report(path: Path):
+def load_slither_report(path: Path, source_root: Path | None = None):
     payload = json.loads(path.read_text(encoding="utf-8"))
     output = []
     for index, detector in enumerate(payload.get("results", {}).get("detectors", []), 1):
         for element in detector.get("elements") or [{}]:
             mapping = element.get("source_mapping") or {}
+            source = mapping.get("filename_relative") or mapping.get("filename_absolute")
+            if source and source_root is not None and not Path(source).is_absolute():
+                source = str((source_root / source).resolve())
+            elif source:
+                source = str(Path(source).as_posix())
             output.append({
                 "id": f"SLITHER-{index:04d}-{len(output)+1:02d}",
                 "analyzer": "slither",
@@ -29,7 +34,7 @@ def load_slither_report(path: Path):
                 "description": (detector.get("description") or "")[:4000],
                 "severity": (detector.get("impact") or "undetermined").lower(),
                 "confidence": (detector.get("confidence") or "unknown").lower(),
-                "source": mapping.get("filename_relative") or mapping.get("filename_absolute"),
+                "source": source,
                 "line": (mapping.get("lines") or [None])[0],
                 "status": "tool_reported_unverified",
             })
