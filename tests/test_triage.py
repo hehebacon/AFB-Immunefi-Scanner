@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from afb_immunefi.triage import deduplicate_findings, benchmark_findings, load_echidna_report, build_triage_report
+from afb_immunefi.triage import deduplicate_findings, benchmark_findings, load_echidna_report, build_triage_report, load_slither_report
 
 
 class TriageTests(unittest.TestCase):
@@ -38,6 +38,18 @@ class TriageTests(unittest.TestCase):
         self.assertEqual((result["tp"], result["fp"], result["fn"], result["tn"]), (1, 1, 1, 1))
         self.assertEqual(result["precision"], 0.5)
         self.assertEqual(result["recall"], 0.5)
+
+    def test_slither_paths_are_resolved_against_source_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            report = root / "slither.json"
+            report.write_text(json.dumps({"results": {"detectors": [{
+                "check": "reentrancy-eth", "impact": "High", "confidence": "Medium",
+                "elements": [{"source_mapping": {"filename_relative": "contracts/V.sol", "lines": [17]}}],
+            }]}}))
+            rows = load_slither_report(report, root)
+        self.assertEqual(rows[0]["source"], str((root / "contracts/V.sol").resolve()))
+        self.assertEqual(rows[0]["line"], 17)
 
     def test_build_triage_report_combines_tool_outputs_and_keeps_unverified_state(self):
         result = build_triage_report(
