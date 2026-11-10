@@ -26,7 +26,7 @@ class _Z3Expression:
         value = (expression or "").strip()
         if not value or len(value) > 500:
             raise ValueError("empty_or_oversized_expression")
-        if any(token in value for token in ("(", ")", "[", "]", "?", ":", "++", "--", "=")):
+        if any(token in value for token in ("[", "]", "?", ":", "++", "--")) or re.search(r"(?<![=!<>])=(?!=)", value):
             raise ValueError("unsupported_solidity_expression")
         value = value.replace("&&", " and ").replace("||", " or ")
         value = re.sub(r"(?<![=!<>])!(?!=)", " not ", value)
