@@ -12,7 +12,7 @@ from .program_intake import save_program_intake
 from .analysis import run_analysis
 from .deployment_verification import verify_targets_file
 from .validation import run_forge_validation, run_forge_differential
-from .triage import benchmark_findings
+from .triage import benchmark_findings, load_slither_report, load_aderyn_report, load_echidna_report, build_triage_report
 
 def build_parser():
     p=argparse.ArgumentParser(prog="afb-immunefi",description="Scope-first local smart-contract research assistant.")
@@ -29,6 +29,7 @@ def build_parser():
     q=sub.add_parser("verify-deployments",help="Check deployed source verification metadata via read-only Sourcify API."); q.add_argument("--targets",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--workspace",type=Path,default=Path("./workspace")); q.add_argument("--source",type=Path,help="Local downloaded Solidity source tree to compare against verified source")
     q=sub.add_parser("validate",help="Run mapped local Foundry tests for review leads."); q.add_argument("--source",type=Path,required=True); q.add_argument("--test-map",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--timeout",type=int,default=1800); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
     q=sub.add_parser("differential",help="Compare local Foundry test outcomes between two source snapshots."); q.add_argument("--reference",type=Path,required=True); q.add_argument("--candidate",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--timeout",type=int,default=1800); q.add_argument("--workspace",type=Path,default=Path("./workspace"))
+    q=sub.add_parser("triage",help="Normalize and deduplicate Slither, Aderyn, Echidna and AFB logic reports."); q.add_argument("--output",type=Path,required=True); q.add_argument("--source-root",type=Path); q.add_argument("--slither",type=Path); q.add_argument("--aderyn",type=Path); q.add_argument("--echidna",type=Path); q.add_argument("--logic",type=Path)
     q=sub.add_parser("benchmark",help="Compute TP/FP/FN/TN on an explicit labeled benchmark corpus."); q.add_argument("--findings",type=Path,required=True); q.add_argument("--manifest",type=Path,required=True); q.add_argument("--output",type=Path,required=True)
     q=sub.add_parser("report",help="Generate a Markdown review report."); q.add_argument("--findings",type=Path,required=True); q.add_argument("--output",type=Path,required=True); q.add_argument("--program",default="Unspecified program")
     return p
@@ -76,6 +77,15 @@ def main():
             require_policy(a.workspace/"program/policy.yaml")
             result=run_forge_differential(a.reference,a.candidate,a.output,timeout=a.timeout)
             print(json.dumps(result,indent=2)); return 0 if result["reference_returncode"]==0 and result["candidate_returncode"]==0 else 1
+        elif a.command=="triage":
+            source_root=a.source_root.resolve() if a.source_root else None
+            slither=load_slither_report(a.slither) if a.slither else []
+            aderyn=load_aderyn_report(a.aderyn,source_root) if a.aderyn else []
+            echidna=load_echidna_report(a.echidna) if a.echidna else []
+            logic=json.loads(a.logic.read_text(encoding="utf-8")) if a.logic else []
+            result=build_triage_report(slither=slither,aderyn=aderyn,echidna=echidna,logic=logic)
+            a.output.parent.mkdir(parents=True,exist_ok=True); a.output.write_text(json.dumps(result,indent=2),encoding="utf-8")
+            print(json.dumps({k:result[k] for k in ("raw_finding_count","deduplicated_finding_count","validation_status")},indent=2))
         elif a.command=="benchmark":
             data=json.loads(a.findings.read_text(encoding="utf-8"))
             manifest=json.loads(a.manifest.read_text(encoding="utf-8"))
