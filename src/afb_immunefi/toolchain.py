@@ -55,12 +55,12 @@ def run_aderyn_local(target: Path, output: Path, timeout: int = 180):
         raise FileNotFoundError("Aderyn is not installed.")
     output.parent.mkdir(parents=True, exist_ok=True)
     command = [
-        executable, ".", "--output", str(output.resolve()),
-        "--no-snippets", "--skip-update-check",
+        executable, "--skip-update-check", "--no-snippets",
+        "--output", str(output.resolve()), str(target.resolve()),
     ]
     proc = subprocess.run(
-        command, cwd=target.resolve(), capture_output=True,
-        text=True, timeout=timeout, check=False,
+        command, capture_output=True, text=True,
+        timeout=timeout, check=False,
     )
     return {
         "command": command,
