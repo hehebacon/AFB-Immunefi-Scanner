@@ -19,6 +19,15 @@ class TriageTests(unittest.TestCase):
         merged = next(x for x in result if x["id"] == "S1")
         self.assertEqual(set(merged["analyzers"]), {"slither", "aderyn"})
 
+    def test_cross_analyzer_dedup_accepts_different_titles_with_shared_tokens(self):
+        rows = [
+            {"id": "S1", "analyzer": "slither", "title": "reentrancy-eth", "source": "src/V.sol", "line": 10},
+            {"id": "A1", "analyzer": "aderyn", "title": "Reentrancy vulnerability", "source": "src/V.sol", "line": 10},
+        ]
+        result = deduplicate_findings(rows)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(set(result[0]["analyzers"]), {"slither", "aderyn"})
+
     def test_benchmark_confusion_matrix_on_explicit_corpus(self):
         detected = [{"rule_id": "BUG-A"}, {"rule_id": "BUG-FP"}]
         result = benchmark_findings(detected, {
