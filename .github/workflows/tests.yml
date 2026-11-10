@@ -19,4 +19,4 @@ jobs:
       - name: Check CLI and desktop launcher syntax
         run: |
           afb-immunefi --help
-          python -m compileall -q intro.py src
+          python -m compileall -q intro.py src\n          bash -n run.sh
