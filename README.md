@@ -17,6 +17,22 @@ A local-first smart-contract analysis tool for authorized bug-bounty research. I
 
 Semantic logic findings are **review leads**, not confirmed vulnerabilities. Real business-logic verification still requires protocol-specific invariants and deterministic local tests.
 
+## Desktop UI
+
+Launch the graphical interface from the repository root:
+
+```bash
+python3 intro.py
+```
+
+On Kali/Debian, if Tkinter is missing:
+
+```bash
+sudo apt install python3-tk
+```
+
+In the UI, select a local Solidity source folder and an AFB workspace. Choose **Initialize Workspace** on first use, review the generated `program/policy.yaml` against the official program rules, and explicitly complete the required confirmations. Then choose **Start Scan**. The UI runs the existing AFB analysis engine in a background thread, displays unverified findings, and saves the unified JSON report to `<workspace>/findings/analysis.json`. The UI does not bypass the policy gate or scan deployed targets.
+
 ## Install
 
 Python 3.11+:
