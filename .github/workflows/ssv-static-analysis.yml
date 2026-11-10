@@ -19,6 +19,11 @@ on:
         required: true
         type: boolean
         default: true
+      run_echidna:
+        description: Run local SSV accounting and lifecycle invariant fuzzing
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -58,6 +63,25 @@ jobs:
       - name: Compile SSV contracts locally
         working-directory: ssv-network
         run: npx hardhat compile --force
+
+      - name: Run SSV Echidna invariant campaign
+        id: echidna
+        if: always() && (github.event_name == 'push' || inputs.run_echidna)
+        continue-on-error: true
+        uses: crytic/echidna-action@v2
+        with:
+          files: .
+          contract: SSVAccountingEchidna
+          test-mode: property
+          test-limit: 5000
+          seq-len: 50
+          shrink-limit: 1000
+          format: json
+          solc-version: 0.8.24
+          output-file: ssv-network/echidna-report.json
+          corpus-dir: ssv-network/echidna-corpus
+          echidna-workdir: ssv-network
+          crytic-args: --hardhat-ignore-compile
 
       - name: Install Slither and AFB analysis extra
         run: |
@@ -108,6 +132,8 @@ jobs:
             reports/
             ssv-network/report.md
             ssv-network/slither.db.json
+            ssv-network/echidna-report.json
+            ssv-network/echidna-corpus/
           if-no-files-found: warn
 
       - name: Enforce analysis results
@@ -117,11 +143,14 @@ jobs:
           AFB_OUTCOME: ${{ steps.afb.outcome }}
           TEST_OUTCOME: ${{ steps.tests.outcome }}
           ADERYN_OUTCOME: ${{ steps.aderyn.outcome }}
+          ECHIDNA_OUTCOME: ${{ steps.echidna.outcome }}
           RUN_ADERYN: ${{ github.event_name == 'push' || inputs.run_aderyn }}
+          RUN_ECHIDNA: ${{ github.event_name == 'push' || inputs.run_echidna }}
         run: |
           echo "Slither: ${SLITHER_OUTCOME}"
           echo "AFB: ${AFB_OUTCOME}"
           echo "Aderyn: ${ADERYN_OUTCOME:-skipped}"
+          echo "Echidna: ${ECHIDNA_OUTCOME:-skipped}"
           test "${TEST_OUTCOME}" = "success"
           test "${SLITHER_OUTCOME}" = "success"
           test "${AFB_OUTCOME}" = "success"
