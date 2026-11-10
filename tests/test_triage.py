@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from afb_immunefi.triage import deduplicate_findings, benchmark_findings, load_echidna_report
+from afb_immunefi.triage import deduplicate_findings, benchmark_findings, load_echidna_report, build_triage_report
 
 
 class TriageTests(unittest.TestCase):
@@ -38,6 +38,17 @@ class TriageTests(unittest.TestCase):
         self.assertEqual((result["tp"], result["fp"], result["fn"], result["tn"]), (1, 1, 1, 1))
         self.assertEqual(result["precision"], 0.5)
         self.assertEqual(result["recall"], 0.5)
+
+    def test_build_triage_report_combines_tool_outputs_and_keeps_unverified_state(self):
+        result = build_triage_report(
+            slither=[{"id": "S1", "analyzer": "slither", "title": "Reentrancy", "source": "src/V.sol", "line": 8}],
+            aderyn=[{"id": "A1", "analyzer": "aderyn", "title": "Reentrancy", "source": "src/V.sol", "line": 8}],
+            echidna=[{"id": "E1", "analyzer": "echidna", "title": "Property falsified", "source": None, "line": None}],
+            logic={"findings": [{"id": "L1", "analyzer": "afb", "title": "State invariant review", "source": "src/V.sol", "line": 22}]},
+        )
+        self.assertEqual(result["raw_finding_count"], 4)
+        self.assertEqual(result["deduplicated_finding_count"], 3)
+        self.assertEqual(result["validation_status"], "unverified_until_local_test_reproduction")
 
     def test_echidna_only_emits_falsified_properties(self):
         with tempfile.TemporaryDirectory() as tmp:
