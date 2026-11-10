@@ -167,3 +167,35 @@ Sourcify metadata and local source comparison are correspondence evidence only; 
 - All machine-generated findings require manual triage, local reproduction, scope/known-issue checks and human review.
 
 See `docs/ANALYSIS_ENGINE.md`, `docs/OPERATIONS.md`, `docs/ARCHITECTURE.md`, and `docs/REVIEW_CHECKLIST.md`.
+
+
+## Automatic local scope mode
+
+Update the local clone and reinstall the analysis extras:
+
+```bash
+bash update.sh
+```
+
+Create a scope folder with this layout:
+
+```text
+scopes/
+  my-authorized-scope/
+    source/                 # Drop the local Solidity source tree here
+    workspace/
+      program/
+        policy.yaml         # Created automatically on first watch
+```
+
+Start the watcher:
+
+```bash
+bash watch-scopes.sh
+```
+
+The watcher notices new or changed Solidity source and runs the unified local analysis automatically after the scope policy has been reviewed and explicitly confirmed. It never bypasses the policy gate. It writes the report to `scopes/<name>/workspace/findings/analysis.json`. Keep the watcher running in a terminal or configure it as a user-level service.
+
+The semantic pass now includes five concurrent review perspectives: authorization paths, shared-state writers, external interactions, transition-guard asymmetry, and coupled accounting updates. They operate on Slither's parsed local-source facts and emit unverified hypotheses. They are not five independent AI models and do not guarantee zero-day discovery.
+
+The exact message `<no bugs more appear on this scope>` is printed only when the unified report contains zero findings. It means no enabled analyzer emitted a finding in that run; it is not a security proof and does not imply that all possible bugs have been found.
