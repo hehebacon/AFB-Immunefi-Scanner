@@ -97,7 +97,7 @@ def run_analysis(source: Path, workspace: Path, include_static_tools: bool = Tru
             try:
                 aderyn_output=static_dir/"aderyn-report.md"
                 aderyn_run=run_aderyn_local(source,aderyn_output)
-                aderyn_findings=load_aderyn_report(aderyn_output) if aderyn_run["output_exists"] else []
+                aderyn_findings=load_aderyn_report(aderyn_output, source) if aderyn_run["output_exists"] else []
                 aderyn_result={"status":"completed" if aderyn_run["output_exists"] else "completed_without_report","returncode":aderyn_run["returncode"],"output":str(aderyn_output),"normalized_findings":len(aderyn_findings),"note":"Native report preserved; parsed findings remain unverified."}
             except (OSError,TimeoutError,ValueError,subprocess.TimeoutExpired) as exc:
                 aderyn_result={"status":"failed","error":str(exc)}
