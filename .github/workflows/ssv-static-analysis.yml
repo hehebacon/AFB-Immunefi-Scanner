@@ -127,6 +127,30 @@ jobs:
           mkdir -p ../reports
           aderyn . -o ../reports/aderyn-report.md --no-snippets --skip-update-check
 
+      - name: Normalize and deduplicate analyzer findings
+        if: always() && steps.afb.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from afb_immunefi.triage import (
+              build_triage_report, load_slither_report,
+              load_aderyn_report, load_echidna_report,
+          )
+          root = Path('ssv-network').resolve()
+          reports = Path('reports')
+          def load_if_exists(path, loader):
+              return loader(path) if path.is_file() else []
+          slither = load_if_exists(reports / 'slither.json', load_slither_report)
+          aderyn = load_if_exists(reports / 'aderyn-report.md', lambda p: load_aderyn_report(p, root))
+          echidna = load_if_exists(root / 'echidna-report.json', load_echidna_report)
+          logic_path = reports / 'afb-logic-review.json'
+          logic = json.loads(logic_path.read_text()) if logic_path.is_file() else []
+          result = build_triage_report(slither=slither, aderyn=aderyn, echidna=echidna, logic=logic)
+          (reports / 'triage.json').write_text(json.dumps(result, indent=2))
+          print(json.dumps({k: result[k] for k in ('raw_finding_count', 'deduplicated_finding_count', 'validation_status')}, indent=2))
+          PY
+
       - name: Upload analysis reports
         if: always()
         uses: actions/upload-artifact@v4
