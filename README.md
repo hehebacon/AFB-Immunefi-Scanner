@@ -58,6 +58,19 @@ The unified analysis produces:
 - `workspace/analysis/logic-review.json`: semantic entrypoint/state-interaction map and logic-review leads.
 - `workspace/findings/ssv-analysis.json`: combined heuristic, Slither and logic-review findings.
 
+To run Echidna property fuzzing against a project-specific local harness:
+```bash
+afb-immunefi echidna \
+  --source ./workspace/reconnaissance/sources/ssvlabs-ssv-network \
+  --contract SSVAccountingEchidna \
+  --output ./workspace/analysis/static/echidna.json \
+  --workspace ./workspace \
+  --test-limit 5000 \
+  --seq-len 50
+```
+
+The command requires Echidna and a harness exposing meaningful `echidna_*` properties. It runs only against the local source project and stores the JSON campaign output. A falsified property is a local counterexample for review, not an automatic vulnerability verdict.
+
 To run Slither alone:
 ```bash
 afb-immunefi slither \
