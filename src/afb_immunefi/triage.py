@@ -44,8 +44,12 @@ def load_aderyn_report(path: Path, source_root: Path | None = None):
         title = match.group(1).strip()
         section_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
         section = text[match.end():section_end]
-        severity_match = re.search(r"(?i)\b(critical|high|medium|low|informational)\b", title + " " + section[:500])
-        location_match = re.search(r"(?m)(?:File|Location|Source):\s*([^\n:]+)(?::(\d+))?", section)
+        severity_match = re.search(r"(?i)\b(critical|high|medium|low|informational)\b|\[([CHML])[-\]]", title + " " + section[:500])
+        location_match = re.search(r"(?m)Found in\s+(.+?)\s+Line:\s*(\d+)", section)
+        if location_match is None:
+            location_match = re.search(r"(?m)(?:File|Location|Source):\s*([^\n:]+)(?::(\d+))?", section)
+        if location_match is None and severity_match is None:
+            continue
         source = location_match.group(1).strip() if location_match else None
         if source and source_root is not None and not Path(source).is_absolute():
             source = str((source_root / source).resolve())
@@ -55,7 +59,7 @@ def load_aderyn_report(path: Path, source_root: Path | None = None):
             "rule_id": _key(title) or "aderyn-finding",
             "title": title[:300],
             "description": section[:2000].strip(),
-            "severity": severity_match.group(1).lower() if severity_match else "undetermined",
+            "severity": (severity_match.group(1) or {"C": "critical", "H": "high", "M": "medium", "L": "low"}.get(severity_match.group(2), "undetermined")).lower() if severity_match else "undetermined",
             "confidence": "unknown",
             "source": source,
             "line": int(location_match.group(2)) if location_match and location_match.group(2) else None,
